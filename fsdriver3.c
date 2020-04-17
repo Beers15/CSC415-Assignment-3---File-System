@@ -25,7 +25,7 @@
 #include "entry.h"
 #include "volumeEntry.h"
 
-void init(freeChunk freeChunks[], uint64_t lbaCount);
+int init(volumeEntry* vcb, char bitMap[], char* bitMapBuf, entry entries[], entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName);
 
 int main(int argc, char* argv[]) {
 	uint64_t vSize = 500000;
@@ -38,58 +38,97 @@ int main(int argc, char* argv[]) {
 	int status = startPartitionSystem(fileName, volSize, blockSize);
 	uint64_t lbaCount = (*volSize / *blockSize) - 1;
 
-	//The single VCB
-	//freeChunk freeChunks[lbaCount];
-	//extents array [lbaCount];
-	//FCB array [lbaCount];
-	//init(freeChunks, extentChunks, etc..,  lbaCount);
+	//metadata
+	volumeEntry* vcb = malloc(*blockSize);
+	entry* entryList = malloc((((sizeof(entry) * lbaCount) / bSize) + 1) * bSize );
+	char bitMap[lbaCount];
+	entry entries[lbaCount];
+	char* bitMapBuf = malloc((((sizeof(char) * lbaCount) / bSize) + 1) * bSize);
+	int numMetadataBlocks = init(vcb, bitMap, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName);
+	init(vcb, bitMap, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName);
+	
+	printf("The number of blocks used for metadata is %d blocks out of %ld blocks.\n", numMetadataBlocks, lbaCount);
+
+	// Testing to see if vcb works here
+	printf("VCB Start of Volume: %c\n", vcb->startOfVolume);
+	printf("VCB Num LBA:		 %d\n", vcb->numLba);
+	printf("VCB Volume Name:	 %s\n", vcb->volumeName);
+	printf("VCB Volume ID:		 %d\n", vcb->volumeID);
+	printf("VCB LBA Size:		 %d\n", vcb->lbaSize);
+	
+	
+	for (int i = 0; i < vcb->numLba; i++) {
+		printf("Main Bitmap Index %d: %c\n", i, *(bitMapBuf + i));
+	}
+	
 	
 
-	/* test code
-		char* buffer = "test string";
+	for (int i = 0; i < vcb->numLba; i++) {
+		printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
+	}
+	
 
-		char* result = malloc(512);
-		uint64_t statusForRead = LBAread(result, 1, 99);
-		printf("read status(%ld) contents:%s\n", statusForRead, result);
-
-
-		uint64_t statusForWrite = LBAwrite(buffer, 1, 99);
-		uint64_t statusForRead2 = LBAread(result, 1, 99);
-		printf("write status(%ld) contents:%s\n", statusForWrite, buffer);
-		printf("the second read status(%ld) contents:%s\n", statusForRead2, result);
-		printf("status(%d) lbaCount(%ld)\n", status, lbaCount);
-	*/
+	//after init works main loop would go here prompting for commands
+	
 	closePartitionSystem();
 
 	return 0;
 }
 
-void init(freeChunk freeChunks[], uint64_t lbaCount) {
-	char* existingVolumeCheck = malloc(512);
-	uint64_t statusForRead = LBAread(existingVolumeCheck, 1, 0);
-	if(strcmp(existingVolumeCheck, "^") == 0) {
-		printf("existing volume, read in metadata to program");
-		//calculate the size of all the info in else block
-		//read buffer void* and assign its values to VCB, free list, extents list, list of FCBs
+//the params here will have to be assigned to whatever already exists on the volume if it isn't a new volume
+int init(volumeEntry* vcb, char bitMap[], char* bitMapBuf, entry entries[], entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName) {
+	//int blocksNeeded = #; //calculate after figturing out init block size for all metadata
+	int trackPosition = 0; 
+	uint64_t statusForRead = LBAread(vcb, 1, 0);
+
+	if(vcb->startOfVolume == '^') {
+		trackPosition += 1; //vcb is always < 1 full block
+		printf("existing volume, read in metadata to program\n");
+		uint64_t statusForRead2 = LBAread(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
+		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+		uint64_t statusForRead3 = LBAread(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1), trackPosition);
+		trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
 	} else {
-		printf("this is a new volume INIT STUFF");	
+		printf("this is a new volume INIT STUFF\n");	
+
 		//create volume control block and init values
-		//create free list and initialize
-		/*
-		for(int i = 0; i < lbacount i++) {
-			inuse = false;
+		volumeEntry vcbTemp;
+		vcbTemp.startOfVolume = '^';
+		vcbTemp.numLba = lbaCount;
+		//vcbTemp.freeInfoLocation = #;
+		//vcbTemp.rootDirLocation = #;
+		strcpy(vcbTemp.volumeName, fileName);
+		vcbTemp.volumeID = 0;
+		vcbTemp.lbaSize = blockSize;
+
+		vcb = &vcbTemp;
+		LBAwrite(vcb, 1, trackPosition);
+		trackPosition += 1; //vcb is always < 1 full block
+		
+
+		//write bitMap array to volume
+		for(int i = 0; i < lbaCount; i++) {
+			if(i < (trackPosition + (((sizeof(entry) * lbaCount) / blockSize) + 1))) {
+				bitMap[i] = '1'; //all the blocks used for metadata are in use
+			}
+			else {
+				bitMap[i] = '0'; //remainder are free
+			}
 		}
-		freeChunk alpha;
-		alpha.count = total lba's
-		alpha.location = something close to 0
-
-		same thing for FCB array and extent array
-
-		*/
-
-		//create extent list "" ""           <------ all with size lbacount 
- 		//create FCB list   "" ""
- 		//write to beginning of volume starting 0 ("^") or 1
- 		//lbawrite with a buffer string containing all this information
+		
+		bitMapBuf = bitMap;
+		int bitMapBlksWritten = LBAwrite(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
+		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+		
+		for (int i = 0; i < lbaCount; i++) {
+			strcpy(entries[i].name, "-1");
+		}
+		
+		//write an empty entry array of the max possible entry size to the new volume
+		entryList = entries;
+		printf("%s\n", (entryList + 3)->name);
+		int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
+		//trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
 	}
+	return trackPosition;	
 }
