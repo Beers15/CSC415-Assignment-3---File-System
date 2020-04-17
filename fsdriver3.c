@@ -25,7 +25,7 @@
 #include "entry.h"
 #include "volumeEntry.h"
 
-int init(volumeEntry* vcb, char bitMap[], entry entries[], uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName);
+int init(volumeEntry* vcb, char bitMap[], char* bitMapBuf, entry entries[], entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName);
 
 int main(int argc, char* argv[]) {
 	uint64_t vSize = 500000;
@@ -40,9 +40,11 @@ int main(int argc, char* argv[]) {
 
 	//metadata
 	volumeEntry* vcb = malloc(*blockSize);
+	entry* entryList = malloc( (((sizeof(entry) * lbaCount) / bSize) + 1) * bSize );
 	char bitMap[lbaCount];
 	entry entries[lbaCount];
-	int numMetadataBlocks = init(vcb, bitMap, entries, *volSize, *blockSize, lbaCount, fileName);
+	char* bitMapBuf = malloc((((sizeof(char) * lbaCount) / bSize) + 1) * bSize);
+	int numMetadataBlocks = init(vcb, bitMap, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName);
 	printf("The number of blocks used for metadata is %d blocks out of %ld blocks.\n", numMetadataBlocks, lbaCount);
 
 	// Testing to see if vcb works here
@@ -51,6 +53,20 @@ int main(int argc, char* argv[]) {
 	printf("VCB Volume Name:	 %s\n", vcb->volumeName);
 	printf("VCB Volume ID:		 %d\n", vcb->volumeID);
 	printf("VCB LBA Size:		 %d\n", vcb->lbaSize);
+	
+	/*
+	for (int i = 0; i < vcb->numLba; i++)
+	{
+		printf("Main Bitmap Index %d: %c\n", i, *(bitMapBuf + i));
+	}
+	*/
+	
+
+	for (int i = 0; i < vcb->numLba; i++)
+	{
+		printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
+	}
+	
 
 	//after init works main loop would go here prompting for commands
 	
@@ -60,7 +76,7 @@ int main(int argc, char* argv[]) {
 }
 
 //the params here will have to be assigned to whatever already exists on the volume if it isn't a new volume
-int init(volumeEntry* vcb, char bitMap[], entry entries[], uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName) {
+int init(volumeEntry* vcb, char bitMap[], char* bitMapBuf, entry entries[], entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName) {
 	//int blocksNeeded = #; //calculate after figturing out init block size for all metadata
 	int trackPosition = 0; 
 	uint64_t statusForRead = LBAread(vcb, 1, 0);
@@ -68,8 +84,11 @@ int init(volumeEntry* vcb, char bitMap[], entry entries[], uint64_t volumeSize, 
 	if(vcb->startOfVolume == '^') {
 		trackPosition += 1; //vcb is always < 1 full block
 		printf("existing volume, read in metadata to program\n");
-		char* bitMapBuf = malloc(((((sizeof(entry) * lbaCount) / blockSize) + 1) * blockSize));
-		uint64_t statusForRead2 = LBAread(bitMapBuf, (((sizeof(entry) * lbaCount) / blockSize) + 1), trackPosition);
+		
+		uint64_t statusForRead2 = LBAread(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
+		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+		uint64_t statusForRead3 = LBAread(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1), trackPosition);
+		trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
 
 		int numBlocks = 2;
 		//calculate the size of all the info in else block
@@ -85,10 +104,19 @@ int init(volumeEntry* vcb, char bitMap[], entry entries[], uint64_t volumeSize, 
 				//out entry array followed by bitmap array values for testing here
 				//entry* entryBuffer;
 				
+				/*
 				for (int i = 0; i < vcb->numLba; i++)
 				{
 					printf("Bitmap Index %d: %c\n", i, *(bitMapBuf + i));
 				}
+				
+				
+				// Test entryList
+				for (int i = 0; i < vcb->numLba; i++)
+				{
+					printf("Entry Index %d: %s\n", i, (entryList + i)->name);
+				}
+				*/
 				
 
 
@@ -134,10 +162,20 @@ int init(volumeEntry* vcb, char bitMap[], entry entries[], uint64_t volumeSize, 
 			}
 		}
 		
+		bitMapBuf = bitMap;
+		int bitMapBlksWritten = LBAwrite(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
+		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+		
+		for (int i = 0; i < lbaCount; i++)
+		{
+			strcpy(entries[i].name, "Hello");
+		}
+		
 		//write an empty entry array of the max possible entry size to the new volume
-		entry* entryListBuf = entries;
-		int entryListBlksWritten = LBAwrite(entryListBuf, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
-		trackPosition += entryListBlksWritten;
+		entryList = entries;
+		printf("%s\n", (entryList + 3)->name);
+		int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
+		trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
 
 
 
