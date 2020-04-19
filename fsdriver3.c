@@ -26,7 +26,7 @@
 #include "volumeEntry.h"
 
 void readVolume(char* volumeName);
-void writeVolume();
+int writeVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDirIndex, uint16_t bit, entry* entryList, char* bitMap, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount);
 //command prompt functions
 void listDir(int currentDirIndex, entry* entries, int size);
 int changeDir(char* args[], int currentDirIndex, entry* entryList, int size);
@@ -90,6 +90,17 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 	}
+	
+	// Testing writeVolume function by writing 3 files
+	char testString[128] = "dfjaslg";
+	char testFileName[128] = "Yard";
+	char testFileName2[128] = "Blanket";
+	char testFileName3[128] = "House";
+	char * testBuffer = testString;
+	writeVolume(testBuffer, testFileName, 256, 0, 1, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
+	writeVolume(testBuffer, testFileName2, 256, 0, 1, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
+	writeVolume(testBuffer, testFileName3, 256, 1, 1, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
+	
 
 	char line[1024];
 	char* args[500];
@@ -223,7 +234,6 @@ int init(volumeEntry* vcb, char bitMap[], char* bitMapBuf, entry entries[], entr
 		for(int i = 0; i < lbaCount; i++) {
 			if(i == 0) {
 				strcpy(entries[i].name, "Root");
-				entries[i].size = 1;
 				entries[i].location = trackPosition; //Lba block location
 				entries[i].index = i;
 				entries[i].createTime = time(NULL);
@@ -298,6 +308,90 @@ int init(volumeEntry* vcb, char bitMap[], char* bitMapBuf, entry entries[], entr
 
 	return trackPosition;	
 }
+
+// Writes the given buffer into the next available space in the volume as long as there's enough memory
+int writeVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDirIndex, uint16_t bit, entry* entryList, char* bitMap, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount)
+{
+	int freeBlockStart;
+	int inFreeSection = 0;
+	int freeBlockExtent;
+	uint64_t fileBlockSize = ((fileSize / blockSize) + 1);
+
+	//Loop through bitMap until we find a section that has enough consecutive blocks to write to.
+	//Once found save into freeBlockStart(block to start writing at) and freeBlockExtent(For how many blocks to write)
+	for(int i = 0; i < lbaCount; i++)
+	{
+		if(*(bitMap + i) == '0' && inFreeSection == 0)
+		{
+			inFreeSection = 1;
+			freeBlockStart = i;
+			freeBlockExtent = 1;
+		}
+		else if(*(bitMap + i) == '0' && inFreeSection == 1)
+		{
+			freeBlockExtent++;
+		}
+		else if(*(bitMap + i) != '0')
+		{
+			freeBlockStart = -1;
+			freeBlockExtent = 0;
+			inFreeSection = 0;
+		}
+		if(freeBlockExtent == fileBlockSize)
+		{
+			break;
+		}
+	}
+	
+	// This error occurs if not enough consecutive amount of blocks.
+	if(freeBlockExtent < fileBlockSize)
+	{
+		printf("ERROR: Not enough memory.\n");
+		return -1;
+	}
+	
+	// If there is an error writing the buffer
+	if( LBAwrite(buffer, freeBlockExtent, freeBlockStart) <= 0 )
+	{
+		printf("ERROR: Could not write to memory.\n");
+		return -1;
+	}
+	
+	// Update bitMap
+	for(int i = freeBlockStart; i < (freeBlockStart + freeBlockExtent); i++)
+	{
+		*(bitMap + i) = '1';
+	}
+	
+	//To write bitmap and entries, trackPosition starts at 1 since we don't need to write vcb again
+	int trackPosition = 1;
+	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
+	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+	
+	// Update entryList with new entry
+	for(int i = 0; i < lbaCount; i++)
+	{
+		if((entryList + i)->parent == -2)
+		{
+			(entryList + i)->parent = currentDirIndex;
+			strcpy((entryList + i)->name, fileName);
+			(entryList + i)->count = freeBlockExtent;
+			(entryList + i)->location = freeBlockStart;
+			(entryList + i)->index = i;
+			//(entryList + i)->id =
+			(entryList + i)->bitMap = bit;
+			(entryList + i)->createTime = time(NULL);
+			(entryList + i)->lastModified = time(NULL);
+			break;
+		}
+	}
+	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
+	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+	
+	return 0;
+	
+}
+
 
 void listDir(int currentDirIndex, entry* entryList, int size) {
 	int entryCount = 0;
