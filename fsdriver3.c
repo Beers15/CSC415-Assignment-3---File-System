@@ -27,6 +27,7 @@
 
 void readVolume(char* volumeName);
 int writeVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDirIndex, uint16_t bit, entry* entryList, char* bitMap, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount);
+int deleteVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* bitMap, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount);
 //command prompt functions
 void listDir(int currentDirIndex, entry* entries, int size);
 int changeDir(char* args[], int currentDirIndex, entry* entryList, int size);
@@ -100,7 +101,16 @@ int main(int argc, char* argv[]) {
 	writeVolume(testBuffer, testFileName, 256, 0, 1, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
 	writeVolume(testBuffer, testFileName2, 256, 0, 1, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
 	writeVolume(testBuffer, testFileName3, 256, 1, 1, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
+	//deleteVolume(20, 256, entryList, bitMapBuf, *volSize, *blockSize, lbaCount);
 	
+	
+	for (int i = 0; i < vcb->numLba; i++) {
+		printf("Main Bitmap Index %d: %c\n", i, *(bitMapBuf + i));
+	}
+
+	for (int i = 0; i < vcb->numLba; i++) {
+		printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
+	}
 
 	char line[1024];
 	char* args[500];
@@ -390,6 +400,37 @@ int writeVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDir
 	
 	return 0;
 	
+}
+
+// Deletes the file at the specified entryList index
+int deleteVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* bitMap, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount)
+{
+	uint64_t fileBlockSize = ((fileSize / blockSize) + 1);
+	
+	// Update bitMap by zeroing out what was once used space, now it can be written over by new files.
+	for(int i = (entryList + fileIndex)->location; i < ((entryList + fileIndex)->location + (entryList + fileIndex)->count); i++)
+	{
+		*(bitMap + i) = '0';
+	}
+	
+	//To write bitmap and entries, trackPosition starts at 1 since we don't need to write vcb again
+	int trackPosition = 1;
+	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
+	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+	
+	// Update entryList by nulling entry
+	(entryList + fileIndex)->parent = -2;
+	strcpy((entryList + fileIndex)->name, "-1");
+	(entryList + fileIndex)->count = -1;
+	(entryList + fileIndex)->location = -1;
+	(entryList + fileIndex)->index = -1;
+	//(entryList + fileIndex)->id =
+	(entryList + fileIndex)->bitMap = -1;
+			
+	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
+	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+	
+	return 0;
 }
 
 
