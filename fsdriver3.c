@@ -131,11 +131,14 @@ int main(int argc, char* argv[]) {
         line[strlen(line) - 1] = '\0';  // removes '\n' from fgets
 
 		//error message for empty line
-        if(!strcmp(line,"\n")){
+        if(strcmp(line,"")== 0 ){
             printf("Error: Empty line. Try again. \n");
             continue;
         }
-
+      	if(strcmp(line," ")== 0 ){
+           	printf("command not found.\n");
+            continue;
+        }
         //when user decides to exit
         if (!strcmp(line, "exit")) {
            return 0;
@@ -446,21 +449,55 @@ void listDir(int currentDirIndex, entry* entryList, int size) {
 	}	
 	printf("\n");
 }
-
+int prevResult =-1;
 int changeDir(char* args[], int currentDirIndex, entry* entryList, int size) {
 	int result = -1;
+	// int prevResult =-1;
+	//Note that "cd " returns args[1] = null 
+	if(args[1] == NULL){
+
+		args[1] = "Root";
+	}
+
 	for(int i = 0; i < size; i++) {
-		if((strcmp(args[1], (entryList + i) -> name) == 0) && ((entryList + i) -> bitMap == 0)) {
+		
+
+		if((strcmp(args[1], (entryList + i) -> name) == 0) && ((entryList + i) -> bitMap == 0)) {		
 			//Check if the entered directory is the child of the current directory
 			if((entryList + i) -> parent == (entryList + currentDirIndex) -> index) {
 				result = i;
+				if(i == -1) {
+					prevResult = -1;
+				}
+				else{prevResult = i-1;}
 			}
 			//Check if the entered directory is the parent of the current directory
 			if((entryList + i) -> index == (entryList + currentDirIndex) -> parent) {
 				result = i;
+				if(i == -1 ) {
+					prevResult = -1;
+				}
+				else{prevResult = i-1;}
 			}
+
 		}
+			if(strcmp(args[1],"..") == 0){
+				// printf("result in ..: %d\n",result);
+				// if(i == -1 ) 
+				// 	prevResult = -1;
+				// if(result == prevResult){
+
+				// 	prevResult= prevResult - 1;
+				// }
+				result = prevResult;
+				
+				// 	if(prevResult == -1 ) 
+				// 		prevResult = -1;
+
+			}
 	} 
+	printf("result: %d\n",result);
+	printf("prevResult: %d\n",prevResult);
 	return result;
 }
 
