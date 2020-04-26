@@ -35,7 +35,7 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSi
 		
 		//write bitMap array to volume
 		for(int i = 0; i < lbaCount; i++) {
-			if(i < (trackPosition + (((sizeof(entry) * lbaCount) / blockSize) + 1))) {
+			if(i < (trackPosition + (((AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1))) / blockSize)) {
 				bitMap[i] = '1'; //all the blocks used for metadata are in use
 			}
 			else {
@@ -53,8 +53,8 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSi
 
 void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 		//entryList is the rootBuffer
-		uint64_t numBlocks = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
-		uint64_t rootDirBlocks = (numBlocks / blockSize);
+		uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
+		uint64_t rootDirBlocks = (numBytes / blockSize);
 		uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
 
 		entry entries[numDirEntries];
@@ -63,7 +63,7 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 		for(int i = 0; i < numDirEntries; i++) {
 			entries[i].id = 0;
 			entries[i].bitMap = ENTRYFLAG_UNUSED;
-			strcpy( entries[i].name, "");
+			strcpy(entries[i].name, "");
 			entries[i].location = 0;
 			//rootBuf[i]->location = trackPosition;
 		}
@@ -98,7 +98,7 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 				entries[3].count = 1; 
 
 		rootBuf = entries;
-		LBAwrite(rootBuf, numBlocks, position);
+		LBAwrite(rootBuf, rootDirBlocks, position);
 }
 
 void readFromVolume(char* volumeName) {

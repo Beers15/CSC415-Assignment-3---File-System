@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
 	char* fileName = "OurVolume";
 	uint64_t bSize = 512;
 	uint64_t* blockSize = &bSize;
-	uint64_t numBlocks = (AVGDIRENTRIES * sizeof(entry)) * (bSize - 1);
-	uint64_t rootDirBlocks = (numBlocks / bSize);
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (bSize - 1);
+	uint64_t rootDirBlocks = (numBytes / bSize);
 	uint64_t numDirEntries = (rootDirBlocks * bSize) / sizeof(entry);
 	uint64_t lbaCount = (*volSize / *blockSize) - 1;
 	
@@ -63,8 +63,8 @@ int main(int argc, char* argv[]) {
 	// 	printf("Main Bitmap Index %d: %c\n", i, *(bitMapBuf + i));
 	// }
 
-	for (int i = 0; i < 100;i++){//numDirEntries; i++) {
-		if((entryList + i)->bitMap != ENTRYFLAG_UNUSED)
+	for (int i = 0; i < numDirEntries; i++){//numDirEntries; i++) {
+		if((entryList + i)->id != 0)
 			printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
 	}
 	
