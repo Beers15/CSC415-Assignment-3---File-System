@@ -219,7 +219,20 @@ int changeDir(char* args[], int currentDirIndex, entry* entryList, int size) {
 }
 
 void makeDir(char* args[]) {
-		//TODO
+	if(args[1] == NULL){
+		printf("Specify name of file to add, followed by the text input for your file.");
+	}
+	else if(args[2] == NULL){
+		printf("Specify name of file to add, followed by the text input for your file.");
+	}
+
+	uint64_t inputSize = strlen(args[2]) + 1;
+	char input[inputSize];
+	strcpy(input, args[2]);
+	char* buf = input;
+
+	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
+    //writeToVolume(ENTRYFLAG_DIR, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
 }
 
 void rmDir(char* args[]){
@@ -244,7 +257,7 @@ void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, 
 	char* buf = input;
 
 	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
-    //writeToVolume(buf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
+    //writeToVolume(ENTRYFLAG_FILE, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
 }
 
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int lbaCount) {
@@ -289,7 +302,8 @@ int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, in
 		printf("TEST: file can be copied.\n");
 		//readFromVolume into buffer
 		//calculate input size into var
-			//writeToVolume(buffer from readFromVolume, args[1], inputSize var, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
+		//readFromVolume old file then assign to buffer
+		//writeToVolume(buffer from readFromVolume, args[1], inputSize var, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
 	}
 
 	return result; //this is the index of the orginal file that move will used to delete the old file
@@ -302,6 +316,7 @@ void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 		printf("TEST: Valid mv cmd entered. Original file at entrylist index %d will be deleted\n", indexOfFileToDel);
 		//calculate file index
 		//calculate file size
+		//readfromVOlume
 	  	//deleteFromVolume(fileIndex value,fileSize var entryList, bitMap, blockSize, lbaCount)
 	}
 }
