@@ -56,11 +56,10 @@ void initRoot(uint64_t position, uint64_t blockSize, entry entries[], entry* roo
 
 		//init max potential entries in root dir
 		for(int i = 0; i < numDirEntries; i++) {
-			entries[i].id = 0;
+			strcpy(entries[i].name, "-1");
 			entries[i].bitMap = ENTRYFLAG_UNUSED;
-			strcpy(entries[i].name, "");
-			entries[i].location = 0;
-			//rootBuf[i]->location = trackPosition;
+			entries[i].id = 0;
+			entries[i].parent = -2; //filler value to show this entry is unassigned
 		}
 
 		//the root dir 
@@ -183,14 +182,14 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
 	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
 
-	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
-	uint64_t rootDirBlocks = (numBytes / blockSize);
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
 	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
 	
 	// Update entryList with new entry
 	for(int i = 0; i < numDirEntries; i++)
 	{
-		if((entryList + i)->bitMap = ENTRYFLAG_UNUSED)
+		if((entryList + i)->parent == -2)
 		{
 			(entryList + i)->parent = currentDirIndex;
 			strcpy((entryList + i)->name, fileName);
@@ -199,16 +198,57 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 			(entryList + i)->index = i;
 			(entryList + i)->id = i;
 			(entryList + i)->bitMap = type;
+			(entryList + i)->createTime = time(NULL);
 			(entryList + i)->lastModified = time(NULL);
 			break;
 		}
 	}
-	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
-	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
+	
 	
 	return 0;
 	
 }
+
+
+// Writes the given buffer into the next available space in the volume as long as there's enough memory
+int writeDirectoryToVolume(char dirName[], int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+{
+	
+	//To write bitmap and entries, trackPosition starts at 1 since we don't need to write vcb again
+	int trackPosition = 1;
+	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
+	
+	// Update entryList with new entry
+	for(int i = 0; i < numDirEntries; i++)
+	{
+		if((entryList + i)->parent == -2)
+		{
+			(entryList + i)->parent = currentDirIndex;
+			strcpy((entryList + i)->name, dirName);
+			(entryList + i)->count = -2;
+			(entryList + i)->location = -2;
+			(entryList + i)->index = i;
+			(entryList + i)->id = i;
+			(entryList + i)->bitMap = type;
+			(entryList + i)->createTime = time(NULL);
+			(entryList + i)->lastModified = time(NULL);
+			break;
+		}
+	}
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
+	
+	
+	return 0;
+	
+}
+
 
 // Deletes the file at the specified entryList index
 int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)

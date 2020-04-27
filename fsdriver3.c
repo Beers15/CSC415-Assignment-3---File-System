@@ -19,7 +19,7 @@
 //command prompt functions
 void listDir(int currentDirIndex, entry* entries, int size);
 int changeDir(char* args[], int currentDirIndex, entry* entryList, int size);
-void makeDir(char* args[]);
+void makeDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
 void rmDir(char* args[]);
 void rmFile(char* args[]);
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount);
@@ -29,7 +29,7 @@ void copyNormaltoCurrent(char* args[]);
 void copyCurrenttoNormal(char* args[]);
 
 int main(int argc, char* argv[]) {
-	uint64_t vSize = 500000;
+	uint64_t vSize = 10000000;
 	uint64_t* volSize = &vSize;
 	char* fileName = "OurVolume";
 	uint64_t bSize = 512;
@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
 	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
 	uint64_t rootDirBlocks = ((numBytes + (bSize - 1)) / bSize);
 	uint64_t numDirEntries = (rootDirBlocks * bSize) / sizeof(entry);
-	printf("numBytes: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", numBytes, rootDirBlocks, numDirEntries);
+	printf("size of entry: %lu\nnumBytes: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", sizeof(entry), numBytes, rootDirBlocks, numDirEntries);
 	uint64_t lbaCount = (*volSize / *blockSize) - 1;
 	
 	int status = startPartitionSystem(fileName, volSize, blockSize);
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 				currentDirIndex = indexVal;
 		}
 		else if(strcmp(args[0],"mkdir") == 0) {
-			makeDir(args);
+			makeDir(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
 		}
 		// else if(strcmp(args[0],"rmdir") == 0) {
 		// 	rmDir(args);
@@ -220,21 +220,13 @@ int changeDir(char* args[], int currentDirIndex, entry* entryList, int size) {
 	return result;
 }
 
-void makeDir(char* args[]) {
+void makeDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
 	if(args[1] == NULL){
-		printf("Specify name of file to add, followed by the text input for your file.");
-	}
-	else if(args[2] == NULL){
-		printf("Specify name of file to add, followed by the text input for your file.");
+		printf("Specify name of directory to add.");
 	}
 
-	uint64_t inputSize = strlen(args[2]) + 1;
-	char input[inputSize];
-	strcpy(input, args[2]);
-	char* buf = input;
-
-	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
-    //writeToVolume(ENTRYFLAG_DIR, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
+	printf("Input String %s \n", args[1]);
+	writeDirectoryToVolume(args[1], currentDirIndex, ENTRYFLAG_DIR, entryList, bitMap, blockSize, size);
 }
 
 void rmDir(char* args[]){
@@ -259,7 +251,7 @@ void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, 
 	char* buf = input;
 
 	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
-    //writeToVolume(ENTRYFLAG_FILE, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
+    writeToVolume(buf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, size);
 }
 
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int lbaCount) {
