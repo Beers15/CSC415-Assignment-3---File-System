@@ -322,9 +322,46 @@ void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 }
 
 void copyNormaltoCurrent(char* args[]){
-		//TODO
+	//args[1] = file name from 'normal' fs
+	//args[2] = file name you want to copy the file to in 'current' fs
+
+	FILE* normalFile_p;
+	int c;
+	//opening file in normal fs
+	normalFile_p = fopen(args[1],"r");
+	//
+
+	// while(1) {
+      c = fgetc(normalFile_p );
+	  
+    //   if( feof(normalFile_p ) ) { 
+    //      break;
+    //   }
+
+      printf("%c\n", c);
+//    }
+
+	fclose(normalFile_p);	
+	
 }
 
 void copyCurrenttoNormal(char* args[]){
-		//TODO
+
+	FILE* CurrentFile_p;
+	int c;
+		//opening file in normal fs
+		CurrentFile_p = fopen(args[1],"r");
+
+		while(1) {
+		c = fgetc(CurrentFile_p );
+		
+		if( feof(CurrentFile_p ) ) { 
+			break;
+		}
+
+		printf("%c\n", c);
+	}
+
+		fclose(CurrentFile_p);	
+
 }
