@@ -77,13 +77,13 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 		entries[0].createTime = time(NULL);
 		entries[0].lastModified = time(NULL);
 		entries[0].parent = -1; //no parent for root
-		entries[0].count = numDirEntries * blockSize; 
+		entries[0].count = numDirEntries; 
 
 				//test
 				entries[2].id = 13111; //to signify root dir
 				entries[2].bitMap = ENTRYFLAG_DIR;
 				strcpy(entries[2].name, "Test");
-				entries[2].location = position;
+				//entries[2].location = position;
 				entries[2].index = 2;
 				entries[2].createTime = time(NULL);
 				entries[2].lastModified = time(NULL);
@@ -93,7 +93,7 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 				entries[3].id = 111111; //to signify root dir
 				entries[3].bitMap = ENTRYFLAG_DIR;
 				strcpy(entries[3].name, "Test2");
-				entries[3].location = position;
+				//entries[3].location = position;
 				entries[3].index = 3;
 				entries[3].createTime = time(NULL);
 				entries[3].lastModified = time(NULL);
@@ -103,7 +103,7 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 				entries[4].id = 3423423; //to signify root dir
 				entries[4].bitMap = ENTRYFLAG_FILE;
 				strcpy(entries[4].name, "testfile");
-				entries[4].location = position;
+				//entries[4].location = position;
 				entries[4].index = 4;
 				entries[4].createTime = time(NULL);
 				entries[4].lastModified = time(NULL);
@@ -114,7 +114,7 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 				entries[5].id = 3422223; //to signify root dir
 				entries[5].bitMap = ENTRYFLAG_FILE;
 				strcpy(entries[5].name, "testfile");
-				entries[5].location = position;
+				//entries[5].location = position;
 				entries[5].index = 5;
 				entries[5].createTime = time(NULL);
 				entries[5].lastModified = time(NULL);
@@ -130,7 +130,7 @@ void readFromVolume(char* volumeName) {
 }
 
 // Writes the given buffer into the next available space in the volume as long as there's enough memory
-int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDirIndex, uint16_t bit, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
 {
 	int freeBlockStart;
 	int inFreeSection = 0;
@@ -187,19 +187,23 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 	int trackPosition = 1;
 	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
 	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
+	uint64_t rootDirBlocks = (numBytes / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
 	
 	// Update entryList with new entry
-	for(int i = 0; i < lbaCount; i++)
+	for(int i = 0; i < numDirEntries; i++)
 	{
-		if((entryList + i)->parent == -2)
+		if((entryList + i)->bitMap = ENTRYFLAG_UNUSED)
 		{
 			(entryList + i)->parent = currentDirIndex;
 			strcpy((entryList + i)->name, fileName);
 			(entryList + i)->count = freeBlockExtent;
 			(entryList + i)->location = freeBlockStart;
 			(entryList + i)->index = i;
-			//(entryList + i)->id =
-			(entryList + i)->bitMap = bit;
+			(entryList + i)->id = i;
+			(entryList + i)->bitMap = type;
 			(entryList + i)->lastModified = time(NULL);
 			break;
 		}
@@ -215,7 +219,7 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
 {
 	uint64_t fileBlockSize = ((fileSize / blockSize) + 1);
-	
+
 	// Update bitMap by zeroing out what was once used space, now it can be written over by new files.
 	for(int i = (entryList + fileIndex)->location; i < ((entryList + fileIndex)->location + (entryList + fileIndex)->count); i++)
 	{
@@ -228,13 +232,12 @@ int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* b
 	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
 	
 	// Update entryList by nulling entry
-	(entryList + fileIndex)->parent = -2;
-	strcpy((entryList + fileIndex)->name, "-1");
-	(entryList + fileIndex)->count = -1;
-	(entryList + fileIndex)->location = -1;
-	(entryList + fileIndex)->index = -1;
-	//(entryList + fileIndex)->id =
-	(entryList + fileIndex)->bitMap = -1;
+	strcpy((entryList + fileIndex)->name, "");
+	(entryList + fileIndex)->count = 1;
+	(entryList + fileIndex)->location = 0;
+	(entryList + fileIndex)->bitMap = ENTRYFLAG_UNUSED;
+    (entryList + fileIndex)->id = 0;
+			
 			
 	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
 	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
