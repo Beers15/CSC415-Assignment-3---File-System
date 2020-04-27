@@ -34,9 +34,10 @@ int main(int argc, char* argv[]) {
 	char* fileName = "OurVolume";
 	uint64_t bSize = 512;
 	uint64_t* blockSize = &bSize;
-	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (bSize - 1);
-	uint64_t rootDirBlocks = (numBytes / bSize);
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (bSize - 1)) / bSize);
 	uint64_t numDirEntries = (rootDirBlocks * bSize) / sizeof(entry);
+	printf("numBytes: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", numBytes, rootDirBlocks, numDirEntries);
 	uint64_t lbaCount = (*volSize / *blockSize) - 1;
 	
 	int status = startPartitionSystem(fileName, volSize, blockSize);
@@ -44,9 +45,10 @@ int main(int argc, char* argv[]) {
 	//metadata
 	volumeEntry* vcb = malloc(*blockSize);
 	entry* entryList = malloc(rootDirBlocks * bSize);// = malloc((((sizeof(entry) * lbaCount) / bSize) + 1) * bSize );
+	entry entries[numDirEntries];
 	char* bitMapBuf = malloc((((sizeof(char) * lbaCount) / bSize) + 1) * bSize);
-	init(vcb, bitMapBuf, entryList, *volSize, *blockSize, lbaCount, fileName);
-	init(vcb, bitMapBuf, entryList, *volSize, *blockSize, lbaCount, fileName);
+	init(vcb, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName, rootDirBlocks, numDirEntries);
+	init(vcb, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName, rootDirBlocks, numDirEntries);
 	int currentDirIndex = 0;
 
 	// printf("The number of blocks used for metadata is %d blocks out of %ld blocks.\n", numMetadataBlocks, lbaCount);
@@ -124,10 +126,10 @@ int main(int argc, char* argv[]) {
         }
 
 		if(strcmp(args[0],"ls") == 0) {
-			listDir(currentDirIndex, entryList, lbaCount); 
+			listDir(currentDirIndex, entryList, numDirEntries); 
 		}
 		else if(strcmp(args[0],"cd") == 0) {
-			int indexVal = changeDir(args, currentDirIndex, entryList, lbaCount);
+			int indexVal = changeDir(args, currentDirIndex, entryList, numDirEntries);
 			if(indexVal != -1)
 				currentDirIndex = indexVal;
 		}

@@ -1,9 +1,9 @@
 #include "logicalFS.h"
 
 //the params here will have to be assigned to whatever already exists on the volume if it isn't a new volume
-void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName) {
+void init(volumeEntry* vcb, char* bitMapBuf, entry entries[], entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName, uint64_t rootDirBlocks, uint64_t numDirEntries) {
 	//int blocksNeeded = #; //calculate after figturing out init block size for all metadata
-	int trackPosition = 0; 
+	uint64_t trackPosition = 0; 
 	char bitMap[lbaCount];
 	uint64_t statusForRead = LBAread(vcb, 1, 0);
 
@@ -14,8 +14,8 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSi
 		printf("Reading in metadata to program...\n");
 		uint64_t statusForRead2 = LBAread(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
 		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
-		uint64_t statusForRead3 = LBAread(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1), trackPosition);
-		trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+		uint64_t statusForRead3 = LBAread(entryList, rootDirBlocks, trackPosition);
+		trackPosition += rootDirBlocks;
 	} else {
 		printf("New volume, intializing metadata...\n");
 
@@ -46,18 +46,13 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSi
 		bitMapBuf = bitMap;
 		int bitMapBlksWritten = LBAwrite(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
 		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
-	printf("IN INIT: %s", (entryList + 0)->name);
-		initRoot(trackPosition, blockSize, entryList);
+		initRoot(trackPosition, blockSize, entries, entryList, rootDirBlocks, numDirEntries);
 	}
 }
 
-void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
+void initRoot(uint64_t position, uint64_t blockSize, entry entries[], entry* rootBuf, uint64_t rootDirBlocks, uint64_t numDirEntries) {
 		//entryList is the rootBuffer
-		uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
-		uint64_t rootDirBlocks = (numBytes / blockSize);
-		uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
-
-		entry entries[numDirEntries];
+		printf("InitRoot\nPosition: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", position, rootDirBlocks, numDirEntries);
 
 		//init max potential entries in root dir
 		for(int i = 0; i < numDirEntries; i++) {
@@ -69,57 +64,57 @@ void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
 		}
 
 		//the root dir 
-		entries[0].id = -1; //to signify root dir
-		entries[0].bitMap = ENTRYFLAG_DIR;
 		strcpy(entries[0].name, "Root");
 		entries[0].location = position;
 		entries[0].index = 0;
+		entries[0].id = -1; //to signify root dir
+		entries[0].bitMap = ENTRYFLAG_DIR;
 		entries[0].createTime = time(NULL);
 		entries[0].lastModified = time(NULL);
 		entries[0].parent = -1; //no parent for root
 		entries[0].count = numDirEntries; 
 
-				//test
-				entries[2].id = 13111; //to signify root dir
-				entries[2].bitMap = ENTRYFLAG_DIR;
-				strcpy(entries[2].name, "Test");
-				//entries[2].location = position;
-				entries[2].index = 2;
-				entries[2].createTime = time(NULL);
-				entries[2].lastModified = time(NULL);
-				entries[2].parent = 0;
-				entries[2].count = 1; 
+		//test
+		entries[2].id = 13111; //to signify root dir
+		entries[2].bitMap = ENTRYFLAG_DIR;
+		strcpy(entries[2].name, "Test");
+		//entries[2].location = position;
+		entries[2].index = 2;
+		entries[2].createTime = time(NULL);
+		entries[2].lastModified = time(NULL);
+		entries[2].parent = 0;
+		entries[2].count = 1; 
 
-				entries[3].id = 111111; //to signify root dir
-				entries[3].bitMap = ENTRYFLAG_DIR;
-				strcpy(entries[3].name, "Test2");
-				//entries[3].location = position;
-				entries[3].index = 3;
-				entries[3].createTime = time(NULL);
-				entries[3].lastModified = time(NULL);
-				entries[3].parent = 2;
-				entries[3].count = 1; 
+		entries[3].id = 111111; //to signify root dir
+		entries[3].bitMap = ENTRYFLAG_DIR;
+		strcpy(entries[3].name, "Test2");
+		//entries[3].location = position;
+		entries[3].index = 3;
+		entries[3].createTime = time(NULL);
+		entries[3].lastModified = time(NULL);
+		entries[3].parent = 2;
+		entries[3].count = 1; 
 
-				entries[4].id = 3423423; //to signify root dir
-				entries[4].bitMap = ENTRYFLAG_FILE;
-				strcpy(entries[4].name, "testfile");
-				//entries[4].location = position;
-				entries[4].index = 4;
-				entries[4].createTime = time(NULL);
-				entries[4].lastModified = time(NULL);
-				entries[4].parent = 2;
-				entries[4].count = 1; 
+		entries[4].id = 3423423; //to signify root dir
+		entries[4].bitMap = ENTRYFLAG_FILE;
+		strcpy(entries[4].name, "testfile");
+		//entries[4].location = position;
+		entries[4].index = 4;
+		entries[4].createTime = time(NULL);
+		entries[4].lastModified = time(NULL);
+		entries[4].parent = 2;
+		entries[4].count = 1; 
 
 
-				entries[5].id = 3422223; //to signify root dir
-				entries[5].bitMap = ENTRYFLAG_FILE;
-				strcpy(entries[5].name, "testfile");
-				//entries[5].location = position;
-				entries[5].index = 5;
-				entries[5].createTime = time(NULL);
-				entries[5].lastModified = time(NULL);
-				entries[5].parent = 0;
-				entries[5].count = 1; 
+		entries[5].id = 3422223; //to signify root dir
+		entries[5].bitMap = ENTRYFLAG_FILE;
+		strcpy(entries[5].name, "testfile");
+		//entries[5].location = position;
+		entries[5].index = 5;
+		entries[5].createTime = time(NULL);
+		entries[5].lastModified = time(NULL);
+		entries[5].parent = 0;
+		entries[5].count = 1; 
 
 		rootBuf = entries;
 		LBAwrite(rootBuf, rootDirBlocks, position);
