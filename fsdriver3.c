@@ -20,8 +20,8 @@
 void listDir(int currentDirIndex, entry* entries, int size);
 int changeDir(char* args[], int currentDirIndex, entry* entryList, int size);
 void makeDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
-void rmDir(char* args[]);
-void rmFile(char* args[]);
+void rmDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries);
+void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries);
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount);
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int size);
 void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
@@ -69,6 +69,8 @@ int main(int argc, char* argv[]) {
 		if((entryList + i)->id != 0)
 			printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
 	}
+	//deleteFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+	
 	
 
 	// Testing writeVolume function by writing 3 files
@@ -136,11 +138,11 @@ int main(int argc, char* argv[]) {
 		else if(strcmp(args[0],"mkdir") == 0) {
 			makeDir(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
 		}
-		// else if(strcmp(args[0],"rmdir") == 0) {
-		// 	rmDir(args);
-		// }
+		else if(strcmp(args[0],"rmdir") == 0) {
+			rmDir(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount, numDirEntries);
+		}
 		else if(strcmp(args[0],"rm") == 0) {
-			rmFile(args);
+			rmFile(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount, numDirEntries);
 		}
 		else if(strcmp(args[0],"addFile") == 0) {
 			addFile(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
@@ -229,12 +231,55 @@ void makeDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, 
 	writeDirectoryToVolume(args[1], currentDirIndex, ENTRYFLAG_DIR, entryList, bitMap, blockSize, size);
 }
 
-void rmDir(char* args[]){
-		//TODO
+void rmDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries){
+	if(args[1] == NULL){
+		printf("Specify name of file to delete.\n");
+	}
+
+	printf("Input String %s \n", args[1]);
+	int index = -1;
+	
+	for (int i = 0; i < numDirEntries; i++){
+		if((strcmp(args[1], (entryList + i) -> name) == 0) && (((entryList + i) -> parent) == currentDirIndex)) {
+			index = i;
+		}
+	}
+	
+	if(index == -1) {
+		printf("Directory not found.\n");
+	}
+	else {
+		for (int i = 0; i < numDirEntries; i++){
+			if((entryList + i) -> parent == (entryList + index) -> index) {
+				deleteFromVolume(i, entryList, bitMap, blockSize, lbaCount);
+			}
+		}
+		deleteDirectoryFromVolume(index, entryList, bitMap, blockSize, lbaCount);
+	}
+	
 }
 
-void rmFile(char* args[]){
-		//TODO
+void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries){
+	if(args[1] == NULL){
+		printf("Specify name of file to delete.\n");
+	}
+
+	printf("Input String %s \n", args[1]);
+	int index = -1;
+	
+	for (int i = 0; i < numDirEntries; i++){
+		if((strcmp(args[1], (entryList + i) -> name) == 0) && (((entryList + i) -> parent) == currentDirIndex)) {
+			index = i;
+		}
+	}
+	
+	if(index == -1) {
+		printf("File not found.\n");
+	}
+	else {
+		deleteFromVolume(index, entryList, bitMap, blockSize, lbaCount);
+	}
+	
 }
 
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {

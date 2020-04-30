@@ -251,9 +251,11 @@ int writeDirectoryToVolume(char dirName[], int currentDirIndex, uint16_t type, e
 
 
 // Deletes the file at the specified entryList index
-int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+int deleteFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
 {
-	uint64_t fileBlockSize = ((fileSize / blockSize) + 1);
+	// Actually  erase data for protection
+	void * blank = malloc(((entryList + fileIndex)->count) * blockSize);
+	LBAwrite(blank, (entryList + fileIndex)->count, (entryList + fileIndex)->location);
 
 	// Update bitMap by zeroing out what was once used space, now it can be written over by new files.
 	for(int i = (entryList + fileIndex)->location; i < ((entryList + fileIndex)->location + (entryList + fileIndex)->count); i++)
@@ -266,16 +268,47 @@ int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* b
 	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
 	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
 	
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
+	
 	// Update entryList by nulling entry
 	strcpy((entryList + fileIndex)->name, "");
-	(entryList + fileIndex)->count = 1;
+	(entryList + fileIndex)->count = 0;
 	(entryList + fileIndex)->location = 0;
 	(entryList + fileIndex)->bitMap = ENTRYFLAG_UNUSED;
     (entryList + fileIndex)->id = 0;
-			
-			
-	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
-	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+	(entryList + fileIndex)->parent = -2;
+	
+	
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
+	
+	return 0;
+}
+
+// Deletes the directory at the specified entryList index
+int deleteDirectoryFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+{
+	
+	int trackPosition = 1;
+	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+	
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
+	
+	// Update entryList by nulling entry
+	strcpy((entryList + fileIndex)->name, "");
+	(entryList + fileIndex)->count = 0;
+	(entryList + fileIndex)->location = 0;
+	(entryList + fileIndex)->bitMap = ENTRYFLAG_UNUSED;
+    (entryList + fileIndex)->id = 0;
+	(entryList + fileIndex)->parent = -2;
+	
+	
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
 	
 	return 0;
 }
