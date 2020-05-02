@@ -19,9 +19,9 @@
 //command prompt functions
 void listDir(int currentDirIndex, entry* entries, int size);
 int changeDir(char* args[], int currentDirIndex, entry* entryList, int size);
-void makeDir(char* args[]);
-void rmDir(char* args[]);
-void rmFile(char* args[]);
+void makeDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
+void rmDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries);
+void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries);
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount);
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int size);
 void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
@@ -29,14 +29,15 @@ void copyNormaltoCurrent(char* args[]);
 void copyCurrenttoNormal(char* args[]);
 
 int main(int argc, char* argv[]) {
-	uint64_t vSize = 500000;
+	uint64_t vSize = 10000000;
 	uint64_t* volSize = &vSize;
 	char* fileName = "OurVolume";
 	uint64_t bSize = 512;
 	uint64_t* blockSize = &bSize;
-	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (bSize - 1);
-	uint64_t rootDirBlocks = (numBytes / bSize);
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (bSize - 1)) / bSize);
 	uint64_t numDirEntries = (rootDirBlocks * bSize) / sizeof(entry);
+	printf("size of entry: %lu\nnumBytes: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", sizeof(entry), numBytes, rootDirBlocks, numDirEntries);
 	uint64_t lbaCount = (*volSize / *blockSize) - 1;
 	
 	int status = startPartitionSystem(fileName, volSize, blockSize);
@@ -44,9 +45,10 @@ int main(int argc, char* argv[]) {
 	//metadata
 	volumeEntry* vcb = malloc(*blockSize);
 	entry* entryList = malloc(rootDirBlocks * bSize);// = malloc((((sizeof(entry) * lbaCount) / bSize) + 1) * bSize );
+	entry entries[numDirEntries];
 	char* bitMapBuf = malloc((((sizeof(char) * lbaCount) / bSize) + 1) * bSize);
-	init(vcb, bitMapBuf, entryList, *volSize, *blockSize, lbaCount, fileName);
-	init(vcb, bitMapBuf, entryList, *volSize, *blockSize, lbaCount, fileName);
+	init(vcb, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName, rootDirBlocks, numDirEntries);
+	init(vcb, bitMapBuf, entries, entryList, *volSize, *blockSize, lbaCount, fileName, rootDirBlocks, numDirEntries);
 	int currentDirIndex = 0;
 
 	// printf("The number of blocks used for metadata is %d blocks out of %ld blocks.\n", numMetadataBlocks, lbaCount);
@@ -67,6 +69,8 @@ int main(int argc, char* argv[]) {
 		if((entryList + i)->id != 0)
 			printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
 	}
+	//deleteFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+	
 	
 
 	// Testing writeVolume function by writing 3 files
@@ -124,21 +128,21 @@ int main(int argc, char* argv[]) {
         }
 
 		if(strcmp(args[0],"ls") == 0) {
-			listDir(currentDirIndex, entryList, lbaCount); 
+			listDir(currentDirIndex, entryList, numDirEntries); 
 		}
 		else if(strcmp(args[0],"cd") == 0) {
-			int indexVal = changeDir(args, currentDirIndex, entryList, lbaCount);
+			int indexVal = changeDir(args, currentDirIndex, entryList, numDirEntries);
 			if(indexVal != -1)
 				currentDirIndex = indexVal;
 		}
 		else if(strcmp(args[0],"mkdir") == 0) {
-			makeDir(args);
+			makeDir(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
 		}
-		// else if(strcmp(args[0],"rmdir") == 0) {
-		// 	rmDir(args);
-		// }
+		else if(strcmp(args[0],"rmdir") == 0) {
+			rmDir(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount, numDirEntries);
+		}
 		else if(strcmp(args[0],"rm") == 0) {
-			rmFile(args);
+			rmFile(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount, numDirEntries);
 		}
 		else if(strcmp(args[0],"addFile") == 0) {
 			addFile(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
@@ -218,29 +222,64 @@ int changeDir(char* args[], int currentDirIndex, entry* entryList, int size) {
 	return result;
 }
 
-void makeDir(char* args[]) {
+void makeDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
 	if(args[1] == NULL){
-		printf("Specify name of file to add, followed by the text input for your file.");
-	}
-	else if(args[2] == NULL){
-		printf("Specify name of file to add, followed by the text input for your file.");
+		printf("Specify name of directory to add.");
 	}
 
-	uint64_t inputSize = strlen(args[2]) + 1;
-	char input[inputSize];
-	strcpy(input, args[2]);
-	char* buf = input;
-
-	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
-    //writeToVolume(ENTRYFLAG_DIR, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
+	printf("Input String %s \n", args[1]);
+	writeDirectoryToVolume(args[1], currentDirIndex, ENTRYFLAG_DIR, entryList, bitMap, blockSize, size);
 }
 
-void rmDir(char* args[]){
-		//TODO
+void rmDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries){
+	if(args[1] == NULL){
+		printf("Specify name of file to delete.\n");
+	}
+
+	printf("Input String %s \n", args[1]);
+	int index = -1;
+	
+	for (int i = 0; i < numDirEntries; i++){
+		if((strcmp(args[1], (entryList + i) -> name) == 0) && (((entryList + i) -> parent) == currentDirIndex)) {
+			index = i;
+		}
+	}
+	
+	if(index == -1) {
+		printf("Directory not found.\n");
+	}
+	else {
+		for (int i = 0; i < numDirEntries; i++){
+			if((entryList + i) -> parent == (entryList + index) -> index) {
+				deleteFromVolume(i, entryList, bitMap, blockSize, lbaCount);
+			}
+		}
+		deleteDirectoryFromVolume(index, entryList, bitMap, blockSize, lbaCount);
+	}
+	
 }
 
-void rmFile(char* args[]){
-		//TODO
+void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries){
+	if(args[1] == NULL){
+		printf("Specify name of file to delete.\n");
+	}
+
+	printf("Input String %s \n", args[1]);
+	int index = -1;
+	
+	for (int i = 0; i < numDirEntries; i++){
+		if((strcmp(args[1], (entryList + i) -> name) == 0) && (((entryList + i) -> parent) == currentDirIndex)) {
+			index = i;
+		}
+	}
+	
+	if(index == -1) {
+		printf("File not found.\n");
+	}
+	else {
+		deleteFromVolume(index, entryList, bitMap, blockSize, lbaCount);
+	}
+	
 }
 
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
@@ -257,7 +296,7 @@ void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, 
 	char* buf = input;
 
 	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
-    //writeToVolume(ENTRYFLAG_FILE, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
+    writeToVolume(buf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, size);
 }
 
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int lbaCount) {

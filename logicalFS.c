@@ -1,9 +1,9 @@
 #include "logicalFS.h"
 
 //the params here will have to be assigned to whatever already exists on the volume if it isn't a new volume
-void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName) {
+void init(volumeEntry* vcb, char* bitMapBuf, entry entries[], entry* entryList, uint64_t volumeSize, uint64_t blockSize, uint64_t lbaCount, char* fileName, uint64_t rootDirBlocks, uint64_t numDirEntries) {
 	//int blocksNeeded = #; //calculate after figturing out init block size for all metadata
-	int trackPosition = 0; 
+	uint64_t trackPosition = 0; 
 	char bitMap[lbaCount];
 	uint64_t statusForRead = LBAread(vcb, 1, 0);
 
@@ -14,8 +14,8 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSi
 		printf("Reading in metadata to program...\n");
 		uint64_t statusForRead2 = LBAread(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
 		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
-		uint64_t statusForRead3 = LBAread(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1), trackPosition);
-		trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+		uint64_t statusForRead3 = LBAread(entryList, rootDirBlocks, trackPosition);
+		trackPosition += rootDirBlocks;
 	} else {
 		printf("New volume, intializing metadata...\n");
 
@@ -46,80 +46,74 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry* entryList, uint64_t volumeSi
 		bitMapBuf = bitMap;
 		int bitMapBlksWritten = LBAwrite(bitMapBuf, (((sizeof(char) * lbaCount) / blockSize) + 1), trackPosition);
 		trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
-	printf("IN INIT: %s", (entryList + 0)->name);
-		initRoot(trackPosition, blockSize, entryList);
+		initRoot(trackPosition, blockSize, entries, entryList, rootDirBlocks, numDirEntries);
 	}
 }
 
-void initRoot(uint64_t position, uint64_t blockSize, entry* rootBuf) {
+void initRoot(uint64_t position, uint64_t blockSize, entry entries[], entry* rootBuf, uint64_t rootDirBlocks, uint64_t numDirEntries) {
 		//entryList is the rootBuffer
-		uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
-		uint64_t rootDirBlocks = (numBytes / blockSize);
-		uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
-
-		entry entries[numDirEntries];
+		printf("InitRoot\nPosition: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", position, rootDirBlocks, numDirEntries);
 
 		//init max potential entries in root dir
 		for(int i = 0; i < numDirEntries; i++) {
-			entries[i].id = 0;
+			strcpy(entries[i].name, "-1");
 			entries[i].bitMap = ENTRYFLAG_UNUSED;
-			strcpy(entries[i].name, "");
-			entries[i].location = 0;
-			//rootBuf[i]->location = trackPosition;
+			entries[i].id = 0;
+			entries[i].parent = -2; //filler value to show this entry is unassigned
 		}
 
 		//the root dir 
-		entries[0].id = -1; //to signify root dir
-		entries[0].bitMap = ENTRYFLAG_DIR;
 		strcpy(entries[0].name, "Root");
 		entries[0].location = position;
 		entries[0].index = 0;
+		entries[0].id = -1; //to signify root dir
+		entries[0].bitMap = ENTRYFLAG_DIR;
 		entries[0].createTime = time(NULL);
 		entries[0].lastModified = time(NULL);
 		entries[0].parent = -1; //no parent for root
 		entries[0].count = numDirEntries; 
 
-				//test
-				entries[2].id = 13111; //to signify root dir
-				entries[2].bitMap = ENTRYFLAG_DIR;
-				strcpy(entries[2].name, "Test");
-				//entries[2].location = position;
-				entries[2].index = 2;
-				entries[2].createTime = time(NULL);
-				entries[2].lastModified = time(NULL);
-				entries[2].parent = 0;
-				entries[2].count = 1; 
+		//test
+		entries[2].id = 13111; //to signify root dir
+		entries[2].bitMap = ENTRYFLAG_DIR;
+		strcpy(entries[2].name, "Test");
+		//entries[2].location = position;
+		entries[2].index = 2;
+		entries[2].createTime = time(NULL);
+		entries[2].lastModified = time(NULL);
+		entries[2].parent = 0;
+		entries[2].count = 1; 
 
-				entries[3].id = 111111; //to signify root dir
-				entries[3].bitMap = ENTRYFLAG_DIR;
-				strcpy(entries[3].name, "Test2");
-				//entries[3].location = position;
-				entries[3].index = 3;
-				entries[3].createTime = time(NULL);
-				entries[3].lastModified = time(NULL);
-				entries[3].parent = 2;
-				entries[3].count = 1; 
+		entries[3].id = 111111; //to signify root dir
+		entries[3].bitMap = ENTRYFLAG_DIR;
+		strcpy(entries[3].name, "Test2");
+		//entries[3].location = position;
+		entries[3].index = 3;
+		entries[3].createTime = time(NULL);
+		entries[3].lastModified = time(NULL);
+		entries[3].parent = 2;
+		entries[3].count = 1; 
 
-				entries[4].id = 3423423; //to signify root dir
-				entries[4].bitMap = ENTRYFLAG_FILE;
-				strcpy(entries[4].name, "testfile");
-				//entries[4].location = position;
-				entries[4].index = 4;
-				entries[4].createTime = time(NULL);
-				entries[4].lastModified = time(NULL);
-				entries[4].parent = 2;
-				entries[4].count = 1; 
+		entries[4].id = 3423423; //to signify root dir
+		entries[4].bitMap = ENTRYFLAG_FILE;
+		strcpy(entries[4].name, "testfile");
+		//entries[4].location = position;
+		entries[4].index = 4;
+		entries[4].createTime = time(NULL);
+		entries[4].lastModified = time(NULL);
+		entries[4].parent = 2;
+		entries[4].count = 1; 
 
 
-				entries[5].id = 3422223; //to signify root dir
-				entries[5].bitMap = ENTRYFLAG_FILE;
-				strcpy(entries[5].name, "testfile");
-				//entries[5].location = position;
-				entries[5].index = 5;
-				entries[5].createTime = time(NULL);
-				entries[5].lastModified = time(NULL);
-				entries[5].parent = 0;
-				entries[5].count = 1; 
+		entries[5].id = 3422223; //to signify root dir
+		entries[5].bitMap = ENTRYFLAG_FILE;
+		strcpy(entries[5].name, "testfile");
+		//entries[5].location = position;
+		entries[5].index = 5;
+		entries[5].createTime = time(NULL);
+		entries[5].lastModified = time(NULL);
+		entries[5].parent = 0;
+		entries[5].count = 1; 
 
 		rootBuf = entries;
 		LBAwrite(rootBuf, rootDirBlocks, position);
@@ -188,14 +182,14 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
 	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
 
-	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry)) * (blockSize - 1);
-	uint64_t rootDirBlocks = (numBytes / blockSize);
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
 	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
 	
 	// Update entryList with new entry
 	for(int i = 0; i < numDirEntries; i++)
 	{
-		if((entryList + i)->bitMap = ENTRYFLAG_UNUSED)
+		if((entryList + i)->parent == -2)
 		{
 			(entryList + i)->parent = currentDirIndex;
 			strcpy((entryList + i)->name, fileName);
@@ -204,21 +198,64 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 			(entryList + i)->index = i;
 			(entryList + i)->id = i;
 			(entryList + i)->bitMap = type;
+			(entryList + i)->createTime = time(NULL);
 			(entryList + i)->lastModified = time(NULL);
 			break;
 		}
 	}
-	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
-	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
+	
 	
 	return 0;
 	
 }
 
-// Deletes the file at the specified entryList index
-int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+
+// Writes the given buffer into the next available space in the volume as long as there's enough memory
+int writeDirectoryToVolume(char dirName[], int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
 {
-	uint64_t fileBlockSize = ((fileSize / blockSize) + 1);
+	
+	//To write bitmap and entries, trackPosition starts at 1 since we don't need to write vcb again
+	int trackPosition = 1;
+	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
+	
+	// Update entryList with new entry
+	for(int i = 0; i < numDirEntries; i++)
+	{
+		if((entryList + i)->parent == -2)
+		{
+			(entryList + i)->parent = currentDirIndex;
+			strcpy((entryList + i)->name, dirName);
+			(entryList + i)->count = -2;
+			(entryList + i)->location = -2;
+			(entryList + i)->index = i;
+			(entryList + i)->id = i;
+			(entryList + i)->bitMap = type;
+			(entryList + i)->createTime = time(NULL);
+			(entryList + i)->lastModified = time(NULL);
+			break;
+		}
+	}
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
+	
+	
+	return 0;
+	
+}
+
+
+// Deletes the file at the specified entryList index
+int deleteFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+{
+	// Actually  erase data for protection
+	void * blank = malloc(((entryList + fileIndex)->count) * blockSize);
+	LBAwrite(blank, (entryList + fileIndex)->count, (entryList + fileIndex)->location);
 
 	// Update bitMap by zeroing out what was once used space, now it can be written over by new files.
 	for(int i = (entryList + fileIndex)->location; i < ((entryList + fileIndex)->location + (entryList + fileIndex)->count); i++)
@@ -231,16 +268,47 @@ int deleteFromVolume(int fileIndex, uint64_t fileSize, entry* entryList, char* b
 	int bitMapBlksWritten = LBAwrite(bitMap, (((sizeof(char) * lbaCount) / blockSize) + 1), 1);
 	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
 	
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
+	
 	// Update entryList by nulling entry
 	strcpy((entryList + fileIndex)->name, "");
-	(entryList + fileIndex)->count = 1;
+	(entryList + fileIndex)->count = 0;
 	(entryList + fileIndex)->location = 0;
 	(entryList + fileIndex)->bitMap = ENTRYFLAG_UNUSED;
     (entryList + fileIndex)->id = 0;
-			
-			
-	int entryListBlksWritten = LBAwrite(entryList, (((sizeof(entry) * lbaCount) / blockSize) + 1) , trackPosition);
-	trackPosition += (((sizeof(entry) * lbaCount) / blockSize) + 1);
+	(entryList + fileIndex)->parent = -2;
+	
+	
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
+	
+	return 0;
+}
+
+// Deletes the directory at the specified entryList index
+int deleteDirectoryFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
+{
+	
+	int trackPosition = 1;
+	trackPosition += (((sizeof(char) * lbaCount) / blockSize) + 1);
+	
+	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
+	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
+	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
+	
+	// Update entryList by nulling entry
+	strcpy((entryList + fileIndex)->name, "");
+	(entryList + fileIndex)->count = 0;
+	(entryList + fileIndex)->location = 0;
+	(entryList + fileIndex)->bitMap = ENTRYFLAG_UNUSED;
+    (entryList + fileIndex)->id = 0;
+	(entryList + fileIndex)->parent = -2;
+	
+	
+	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+	trackPosition += rootDirBlocks;
 	
 	return 0;
 }
