@@ -25,7 +25,7 @@ void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount);
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int size);
 void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
-void copyNormaltoCurrent(char* args[]);
+void copyNormaltoCurrent(char* args[],uint64_t fileSize, int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount);
 void copyCurrenttoNormal(char* args[]);
 
 int main(int argc, char* argv[]) {
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]) {
 			mvFile(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
 		}
 		else if(strcmp(args[0],"cpn") == 0) {
-			copyNormaltoCurrent(args);
+			copyNormaltoCurrent(args, 256, 0, 1, entryList, bitMapBuf, bSize, lbaCount);
 		}
 		else if(strcmp(args[0],"cpc") == 0) {
 			copyCurrenttoNormal(args);
@@ -262,7 +262,7 @@ void rmDir(char* args[], int currentDirIndex, entry* entryList, char* bitMap, ui
 void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount, uint64_t numDirEntries){
 	if(args[1] == NULL){
 		printf("Specify name of file to delete.\n");
-	}
+	}else{
 
 	printf("Input String %s \n", args[1]);
 	int index = -1;
@@ -279,17 +279,20 @@ void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 	else {
 		deleteFromVolume(index, entryList, bitMap, blockSize, lbaCount);
 	}
-	
+	}
 }
 
-void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
+void 
+addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
+	printf("here");
+
 	if(args[1] == NULL){
-		printf("Specify name of file to add, followed by the text input for your file.");
+		printf("Specify name of file to add, followed by the text input for your file.\n");
 	}
 	else if(args[2] == NULL){
-		printf("Specify name of file to add, followed by the text input for your file.");
+		printf("Specify name of file to add, followed by the text input for your file.\n");
 	}
-
+	else{
 	uint64_t inputSize = strlen(args[2]) + 1;
 	char input[inputSize];
 	strcpy(input, args[2]);
@@ -297,12 +300,23 @@ void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, 
 
 	printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
     writeToVolume(buf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, size);
+	}
 }
 
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int lbaCount) {
 	int fileInCurrentDir = 0;
 	int dirExists = 0;
 	int result = -2;
+	//TODO SEG ERROR ON COPY
+
+	if(args[1]==NULL) {
+		printf("Error: must add file name to copy followed by the file to store copied data\n");
+	}
+	else if(args[2]==NULL) {
+		printf("Error: must add file name to copy followed by the file to store copied data\n");
+	}else {
+
+	
 
 	for(int i = 0; i < lbaCount; i++) {
 		if(((entryList + i) -> bitMap == ENTRYFLAG_DIR) && ((entryList + i) -> parent == (entryList + currentDirIndex) -> index) && strcmp((entryList + i) -> name, args[1]) == 0) {
@@ -345,7 +359,9 @@ int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, in
 		//writeToVolume(buffer from readFromVolume, args[1], inputSize var, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
 	}
 
-	return result; //this is the index of the orginal file that move will used to delete the old file
+	return result;
+	//this is the index of the orginal file that move will used to delete the old file
+	}
 } 
 
 void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount){
@@ -360,10 +376,48 @@ void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 	}
 }
 
-void copyNormaltoCurrent(char* args[]){
-		//TODO
+void copyNormaltoCurrent(char* args[],uint64_t fileSize, int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount){
+	//args[1] = file name from 'normal' fs
+	//args[2] = file name you want to copy the file to in 'current' fs
+	
+	FILE* normalFile_p;
+	int buffer;
+	char FileToWrite[512];
+  	
+	normalFile_p = fopen(args[1],"r");
+
+		while(1) {
+		buffer = fgetc(normalFile_p );
+		
+		if( feof(normalFile_p ) ) { 
+			break;
+		}
+
+		printf("%c\n", buffer);
+		// writeToVolume(buffer,args[2], 256, 0, 1, entryList, bitMap, blockSize, lbaCount);
+	}
+
+		fclose(normalFile_p);
 }
 
 void copyCurrenttoNormal(char* args[]){
-		//TODO
+	FILE* CurrentFile_p;
+	int c;
+		//opening file in normal fs
+		CurrentFile_p = fopen(args[1],"r");
+
+		while(1) {
+		c = fgetc(CurrentFile_p );
+		
+		if( feof(CurrentFile_p ) ) { 
+			break;
+		}
+
+		printf("%c\n", c);
+	}
+
+		fclose(CurrentFile_p);
 }
+
+	// writeToVolume(buffer,args[2], 256, 0, 1, entryList, bitMap, blockSize, lbaCount);
+	
