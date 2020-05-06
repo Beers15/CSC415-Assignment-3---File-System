@@ -23,8 +23,6 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry entries[], entry* entryList, 
 		volumeEntry vcbTemp;
 		vcbTemp.startOfVolume = '^';
 		vcbTemp.numLba = lbaCount;
-		//vcbTemp.freeInfoLocation = #;
-		//vcbTemp.rootDirLocation = #;
 		strcpy(vcbTemp.volumeName, fileName);
 		vcbTemp.volumeID = 0;
 		vcbTemp.lbaSize = blockSize;
@@ -96,31 +94,39 @@ void initRoot(uint64_t position, uint64_t blockSize, entry entries[], entry* roo
 
 		entries[4].id = 3423423; //to signify root dir
 		entries[4].bitMap = ENTRYFLAG_FILE;
-		strcpy(entries[4].name, "testfile");
+		strcpy(entries[4].name, "alphatest");
 		//entries[4].location = position;
 		entries[4].index = 4;
 		entries[4].createTime = time(NULL);
 		entries[4].lastModified = time(NULL);
 		entries[4].parent = 2;
+		entries[4].location = 200;
 		entries[4].count = 1; 
+
+		char* buf = "ENTRY 4 filename TEST: THIS IS A TEST 11111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333";
+		LBAwrite(buf, 1, 200);
 
 
 		entries[5].id = 3422223; //to signify root dir
 		entries[5].bitMap = ENTRYFLAG_FILE;
 		strcpy(entries[5].name, "testfile");
-		//entries[5].location = position;
+		entries[5].location = 300;
 		entries[5].index = 5;
 		entries[5].createTime = time(NULL);
 		entries[5].lastModified = time(NULL);
 		entries[5].parent = 0;
 		entries[5].count = 1; 
 
+		char* buf2 = "####################@@@@@@@@@@@@@@@@@@@((((((((((((((((()))))))))))))))))))(((((((((((((((((((((((($$$$$$$$$$$$$$$$$$$";
+		LBAwrite(buf2, 1, 300);
+
+
 		rootBuf = entries;
 		LBAwrite(rootBuf, rootDirBlocks, position);
 }
 
 // Reads file contents from disk into a buffer that is returned to the caller
-void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex){
+void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex) {
 	uint64_t filePosition;
 	uint64_t fileBlockCount;
 	void* buffer; // generic buffer
@@ -128,7 +134,7 @@ void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, 
 
 	// Iterate entryList to find filename
 	// Update entryList with new entry
-	for(int i = 1; i < numDirEntries; i++){
+	for(int i = 1; i < numDirEntries; i++) {
 		// Check if the filename exists in the current directory
 		if(strcmp((entryList + i)->name, fileName) == 0 && ((entryList + i)->parent == currentDirIndex))
 		{
@@ -136,18 +142,18 @@ void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, 
 			filePosition = (entryList + i)->location;
 			fileBlockCount = (entryList + i)->count;
 
-			buffer = malloc(sizeof(entry)*fileBlockCount);
+			buffer = malloc(sizeof(entry) * fileBlockCount);
 
 			// LBA read file into buffer
-			int readStatus = LBAread(buffer, fileBlockCount ,filePosition);
+			LBAread(buffer, fileBlockCount, filePosition);
 
 			break;
 		}
 	}
 
 	// Case where filename doesnt exist in the current directory
-	if(!found){
-		printf("ERROR: File not found.\n");
+	if(!found) {
+		printf("The file specified is not in the current directory.\n");
 		buffer = NULL;
 		// Or
 		//return -1;
@@ -219,26 +225,37 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 	uint64_t rootDirBlocks = ((numBytes + (blockSize - 1)) / blockSize);
 	uint64_t numDirEntries = (rootDirBlocks * blockSize) / sizeof(entry);
 	
-	// Update entryList with new entry
-	for(int i = 0; i < numDirEntries; i++)
-	{
-		if((entryList + i)->parent == -2)
-		{
-			(entryList + i)->parent = currentDirIndex;
-			strcpy((entryList + i)->name, fileName);
-			(entryList + i)->count = freeBlockExtent;
-			(entryList + i)->location = freeBlockStart;
-			(entryList + i)->index = i;
-			(entryList + i)->id = i;
-			(entryList + i)->bitMap = type;
-			(entryList + i)->createTime = time(NULL);
-			(entryList + i)->lastModified = time(NULL);
-			break;
-		}
+
+	int duplicate = 0;
+	for(int i = 0; i < numDirEntries; i++) {
+		if((strcmp((entryList + i)->name, fileName) == 0) && (entryList + i)->parent == currentDirIndex) {
+			printf("\n%s %d\n", (entryList + i)->name,(entryList + i)->parent);
+				printf("There is already an entry with the same name in the folder being written to. Please try again.\n");
+				duplicate = 1;
+			}
 	}
-	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
-	trackPosition += rootDirBlocks;
-	
+
+	if(duplicate == 0) {
+		// Update entryList with new entry
+		for(int i = 0; i < numDirEntries; i++)
+		{
+			if((entryList + i)->parent == -2)
+			{
+				(entryList + i)->parent = currentDirIndex;
+				strcpy((entryList + i)->name, fileName);
+				(entryList + i)->count = freeBlockExtent;
+				(entryList + i)->location = freeBlockStart;
+				(entryList + i)->index = i;
+				(entryList + i)->id = i;
+				(entryList + i)->bitMap = type;
+				(entryList + i)->createTime = time(NULL);
+				(entryList + i)->lastModified = time(NULL);
+				break;
+			}
+		}
+		int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
+		trackPosition += rootDirBlocks;
+	}	
 	
 	return 0;
 	
