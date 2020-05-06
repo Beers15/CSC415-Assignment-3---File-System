@@ -264,26 +264,25 @@ void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 		printf("Specify name of file to delete.\n");
 	}else{
 
-	printf("Input String %s \n", args[1]);
-	int index = -1;
+		printf("Input String %s \n", args[1]);
+		int index = -1;
 	
-	for (int i = 0; i < numDirEntries; i++){
-		if((strcmp(args[1], (entryList + i) -> name) == 0) && (((entryList + i) -> parent) == currentDirIndex)) {
-			index = i;
+		for (int i = 0; i < numDirEntries; i++){
+			if((strcmp(args[1], (entryList + i) -> name) == 0) && (((entryList + i) -> parent) == currentDirIndex)) {
+				index = i;
+			}
 		}
-	}
 	
-	if(index == -1) {
-		printf("File not found.\n");
-	}
-	else {
-		deleteFromVolume(index, entryList, bitMap, blockSize, lbaCount);
-	}
+		if(index == -1) {
+			printf("File not found.\n");
+		}
+		else {
+			deleteFromVolume(index, entryList, bitMap, blockSize, lbaCount);
+		}
 	}
 }
 
-void 
-addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
+void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size) {
 	printf("here");
 
 	if(args[1] == NULL){
@@ -419,5 +418,5 @@ void copyCurrenttoNormal(char* args[]){
 		fclose(CurrentFile_p);
 }
 
-	// writeToVolume(buffer,args[2], 256, 0, 1, entryList, bitMap, blockSize, lbaCount);
+// writeToVolume(buffer,args[2], 256, 0, 1, entryList, bitMap, blockSize, lbaCount);
 	
