@@ -119,8 +119,41 @@ void initRoot(uint64_t position, uint64_t blockSize, entry entries[], entry* roo
 		LBAwrite(rootBuf, rootDirBlocks, position);
 }
 
-void readFromVolume(char* volumeName) {
+// Reads file contents from disk into a buffer that is returned to the caller
+void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex){
+	uint64_t filePosition;
+	uint64_t fileBlockCount;
+	void* buffer; // generic buffer
+	bool found = false;
 
+	// Iterate entryList to find filename
+	// Update entryList with new entry
+	for(int i = 1; i < numDirEntries; i++){
+		// Check if the filename exists in the current directory
+		if(strcmp((entryList + i)->name, fileName) == 0 && ((entryList + i)->parent == currentDirIndex))
+		{
+			found = true;
+			filePosition = (entryList + i)->location;
+			fileBlockCount = (entryList + i)->count;
+
+			buffer = malloc(sizeof(entry)*fileBlockCount);
+
+			// LBA read file into buffer
+			int readStatus = LBAread(buffer, fileBlockCount ,filePosition);
+
+			break;
+		}
+	}
+
+	// Case where filename doesnt exist in the current directory
+	if(!found){
+		printf("ERROR: File not found.\n");
+		buffer = NULL;
+		// Or
+		//return -1;
+	}
+	
+	return buffer;
 }
 
 // Writes the given buffer into the next available space in the volume as long as there's enough memory
