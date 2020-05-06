@@ -25,7 +25,7 @@ void rmFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount);
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, int size);
 void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size);
-void copyNormaltoCurrent(char* args[],uint64_t fileSize, int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount);
+void copyNormaltoCurrent(char* args[],int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int lbaCount);
 void copyCurrenttoNormal(char* args[]);
 
 int main(int argc, char* argv[]) {
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]) {
 			mvFile(args, currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
 		}
 		else if(strcmp(args[0],"cpn") == 0) {
-			copyNormaltoCurrent(args, 256, 0, 1, entryList, bitMapBuf, bSize, lbaCount);
+			copyNormaltoCurrent(args,currentDirIndex, entryList, bitMapBuf, bSize, lbaCount);
 		}
 		else if(strcmp(args[0],"cpc") == 0) {
 			copyCurrenttoNormal(args);
@@ -376,28 +376,46 @@ void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 	}
 }
 
-void copyNormaltoCurrent(char* args[],uint64_t fileSize, int currentDirIndex, uint16_t type, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount){
+void copyNormaltoCurrent(char* args[],int currentDirIndex, entry* entryList, char* bitMap, uint64_t blockSize, int size){
 	//args[1] = file name from 'normal' fs
 	//args[2] = file name you want to copy the file to in 'current' fs
 	
-	FILE* normalFile_p;
-	int buffer;
-	char FileToWrite[512];
-  	
-	normalFile_p = fopen(args[1],"r");
+	int normalFd_p,fdSize,buffSize;
 
-		while(1) {
-		buffer = fgetc(normalFile_p );
-		
-		if( feof(normalFile_p ) ) { 
-			break;
-		}
 
-		printf("%c\n", buffer);
-		// writeToVolume(buffer,args[2], 256, 0, 1, entryList, bitMap, blockSize, lbaCount);
+	normalFd_p = open(args[1], O_RDONLY);
+	
+
+	//checks if file to read and the file to write on exists
+	if(normalFd_p < 0) {
+		printf("Error opening file\n");
+		  if(args[2]== NULL) {
+			  printf("Error: argument invalid. file to write on unavailable.\n");
+		  }
+	//checks if file to write on exists
+	} else if(args[2]== NULL) {
+
+		printf("Error: argument invalid. file to write on unavailable.\n");
+	}else {
+
+	buffSize = lseek(normalFd_p,0,SEEK_END); //taking offset size from where normalfd ptr is (starting point) to end of file
+	printf("test: %d\n", buffSize);
+	lseek(normalFd_p,0,SEEK_SET);//bringing ptr back to begginging
+
+	char buffer[buffSize + 1];
+
+	fdSize = read(normalFd_p,buffer,buffSize);
+	
+	printf("fdSize: %d\n", fdSize); //TEST for size
+
+	printf("buffer: %s\n", buffer); //TEST for content
+
+
+	close(normalFd_p);
+	printf("buffer size: %ld\n", strlen(buffer));//TEST
+
+		 writeToVolume(buffer,args[2], fdSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, size);
 	}
-
-		fclose(normalFile_p);
 }
 
 void copyCurrenttoNormal(char* args[]){
