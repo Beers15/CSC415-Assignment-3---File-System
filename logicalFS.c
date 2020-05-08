@@ -126,11 +126,11 @@ void initRoot(uint64_t position, uint64_t blockSize, entry entries[], entry* roo
 }
 
 // Reads file contents from disk into a buffer that is returned to the caller
-void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex) {
+void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex, uint64_t blockSize) {
 	uint64_t filePosition;
 	uint64_t fileBlockCount;
 	void* buffer; // generic buffer
-	bool found = false;
+	int found = 0;
 
 	// Iterate entryList to find filename
 	// Update entryList with new entry
@@ -138,11 +138,11 @@ void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, 
 		// Check if the filename exists in the current directory
 		if(strcmp((entryList + i)->name, fileName) == 0 && ((entryList + i)->parent == currentDirIndex))
 		{
-			found = true;
+			found = 1;
 			filePosition = (entryList + i)->location;
 			fileBlockCount = (entryList + i)->count;
 
-			buffer = malloc(sizeof(entry) * fileBlockCount);
+			buffer = malloc(blockSize * fileBlockCount);
 
 			// LBA read file into buffer
 			LBAread(buffer, fileBlockCount, filePosition);
@@ -152,7 +152,7 @@ void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, 
 	}
 
 	// Case where filename doesnt exist in the current directory
-	if(!found) {
+	if(found == 0) {
 		printf("The file specified is not in the current directory.\n");
 		buffer = NULL;
 		// Or

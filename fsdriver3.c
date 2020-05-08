@@ -70,9 +70,14 @@ int main(int argc, char* argv[]) {
 	// }
 
 	for (int i = 0; i < numDirEntries; i++){//numDirEntries; i++) {
-		if((entryList + i)->id != 0)
+		if((entryList + i)->id != 0) {
 			printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
+			printf("Main Entry location %d: %d\n", i, (entryList + i)->location);
+			printf("Main Entry count %d: %d\n", i, (entryList + i)->count);
+		}
 	}
+	//readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex)
+	printf("File Text: %s", (char*)readFromVolume("how", entryList, numDirEntries, 0, *blockSize));
 	//deleteFromVolume(int fileIndex, entry* entryList, char* bitMap, uint64_t blockSize, uint64_t lbaCount)
 	
 	
@@ -295,7 +300,8 @@ void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, 
 		uint64_t inputSize = strlen(args[2]) + 1;
 		char input[inputSize];
 		strcpy(input, args[2]);
-		char* buf = input;
+		char* buf = malloc( (((inputSize/blockSize)+1) * blockSize) );
+		strcpy(buf, args[2]);
 
 		printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
 	    writeToVolume(buf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap, blockSize, size);
@@ -351,11 +357,13 @@ int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, in
 		}
 
 		else if(result != -2) {
-			int size = (entryList + result) -> count;
+			int size = (((entryList + result) -> count) * blockSize) - 1;
 			char* name = (entryList + result) -> name;
+			printf("Size: %d", size);
 
 			//read in file specified
-			void* buffer = readFromVolume((entryList + result) -> name, entryList, numDirEntries, currentDirIndex);
+			void * buffer = malloc(((size / blockSize) + 1) * blockSize);
+			buffer = readFromVolume((entryList + result) -> name, entryList, numDirEntries, currentDirIndex, blockSize);
 			//write a 'copy' to the destination directory
 			writeToVolume(buffer, args[1], size, indexOfDestinationDir, ENTRYFLAG_FILE, entryList, bitMap, blockSize, lbaCount);
 		}
@@ -369,9 +377,6 @@ void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, u
 	int indexOfFileToDel = cpFile(args, currentDirIndex, entryList, bitMap, lbaCount, numDirEntries, blockSize);
 
 	if(indexOfFileToDel != -2) {
-		int size = (entryList + indexOfFileToDel) -> count;
-		//read in the file that is going to be moved into a buffer
-		void* buffer = readFromVolume((entryList + indexOfFileToDel) -> name, entryList, numDirEntries, currentDirIndex);
 		//delete the previous entry
 		deleteFromVolume((entryList + indexOfFileToDel) -> index, entryList, bitMap, blockSize, lbaCount);
 	}
