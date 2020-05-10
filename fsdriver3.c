@@ -27,7 +27,7 @@ void addFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap);
 int cpFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t numDirEntries);
 void mvFile(char* args[], int currentDirIndex, entry* entryList, char* bitMap, uint64_t numDirEntries);
 void copyNormaltoCurrent(char* args[],int currentDirIndex, entry* entryList, char* bitMap);
-void copyCurrenttoNormal(char* args[]);
+void copyCurrenttoNormal(char* args[],char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex);
 
 int main(int argc, char* argv[]) {
 	uint64_t vSize = VOLUME_SIZE;
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
 			copyNormaltoCurrent(args,currentDirIndex, entryList,bitMapBuf);
 		}
 		else if(strcmp(args[0],"cpc") == 0) {
-			copyCurrenttoNormal(args);
+			copyCurrenttoNormal( args, fileName, entryList, numDirEntries, currentDirIndex);
 		}
 		else{
 			//TODO not sure if theres some type of error message to call
@@ -404,24 +404,31 @@ void copyNormaltoCurrent(char* args[],int currentDirIndex, entry* entryList, cha
 	}
 }
 
-void copyCurrenttoNormal(char* args[]){
-	FILE* CurrentFile_p;
-	int c;
-		//opening file in normal fs
-		CurrentFile_p = fopen(args[1],"r");
+void copyCurrenttoNormal(char* args[],char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex){
+	//read the file you want to copy with readFromVolume
+	// open normal file
+	//write in normal file
+	
 
-		while(1) {
-		c = fgetc(CurrentFile_p );
-		
-		if( feof(CurrentFile_p ) ) { 
-			break;
-		}
+	const char * currentBuff = (char *) readFromVolume(args[1],entryList, numDirEntries, currentDirIndex);
+	printf("buffer: %s\n", currentBuff); //TEST
 
-		printf("%c\n", c);
-	}
+	FILE *fp;
+	//Make sure you have /tmp directory available.
+	char* tmpDir = "/tmp/";
+	char fname[strlen(tmpDir) + strlen(args[2]) + 1];
+	sprintf(fname,"%s%s",tmpDir,args[2]);
+	printf("fname: %s\n",fname); //TEST
 
-		fclose(CurrentFile_p);
+   fp = fopen(fname, "w+");
+//    fprintf(fp, "This is testing for fprintf...\n");
+   if(fputs(currentBuff, fp)< 0) {
+	   printf("Error: Failed to  write on Normal File System");
+   }
+
+   fclose(fp);
+	
 }
 
-// writeToVolume(buffer,args[2], 256, 0, 1, entryList, bitMap);
+// readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex);
 	
