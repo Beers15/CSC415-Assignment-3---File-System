@@ -8,6 +8,8 @@
 #include "entry.h"
 #include "volumeEntry.h"
 #include "fsLow.h"
+#include <fcntl.h>
+#include <unistd.h>
 
 #define AVGDIRENTRIES 100
 #define ENTRYFLAG_DIR 0
