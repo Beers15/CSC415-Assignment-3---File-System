@@ -33,7 +33,7 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry entries[], entry* entryList, 
 		
 		//write bitMap array to volume
 		for(int i = 0; i < LBA_COUNT; i++) {
-			if(i < (trackPosition + (((AVGDIRENTRIES * sizeof(entry)) * (BLOCK_SIZE - 1))) / BLOCK_SIZE)) {
+			if(i < (trackPosition + (((sizeof(char) * LBA_COUNT) / BLOCK_SIZE) + 1) + rootDirBlocks)) {
 				bitMap[i] = '1'; //all the blocks used for metadata are in use
 			}
 			else {
@@ -165,14 +165,14 @@ void* readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, 
 // Writes the given buffer into the next available space in the volume as long as there's enough memory
 int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentDirIndex, uint16_t type, entry* entryList, char* bitMap)
 {
-	int freeBlockStart;
-	int inFreeSection = 0;
-	int freeBlockExtent;
+	uint64_t freeBlockStart;
+	uint64_t inFreeSection = 0;
+	uint64_t freeBlockExtent;
 	uint64_t fileBlockSize = ((fileSize / BLOCK_SIZE) + 1);
 
 	//Loop through bitMap until we find a section that has enough consecutive blocks to write to.
 	//Once found save into freeBlockStart(block to start writing at) and freeBlockExtent(For how many blocks to write)
-	for(int i = 0; i < LBA_COUNT; i++)
+	for(uint64_t i = 0; i < LBA_COUNT; i++)
 	{
 		if(*(bitMap + i) == '0' && inFreeSection == 0)
 		{

@@ -472,7 +472,7 @@ void copyNormaltoCurrent(char *args[], int currentDirIndex, entry *entryList, ch
 	//args[1] = file name from 'normal' fs
 	//args[2] = file name you want to copy the file to in 'current' fs
 
-	int normalFd_p, fdSize, buffSize;
+	uint64_t normalFd_p, fdSize, buffSize;
 
 	normalFd_p = open(args[1], O_RDONLY);
 
@@ -495,16 +495,18 @@ void copyNormaltoCurrent(char *args[], int currentDirIndex, entry *entryList, ch
 	{
 
 		buffSize = lseek(normalFd_p, 0, SEEK_END); //taking offset size from where normalfd ptr is (starting point) to end of file
-		printf("test: %d\n", buffSize);
+		printf("test: %ld\n", buffSize);
 		lseek(normalFd_p, 0, SEEK_SET); //bringing ptr back to begginging
+		
+		void * buffer = malloc(buffSize);
 
-		char buffer[buffSize + 1];
+		//char buffer[buffSize];
 
 		fdSize = read(normalFd_p, buffer, buffSize);
 
-		printf("fdSize: %d\n", fdSize); //TEST for size
+		printf("fdSize: %ld\n", fdSize); //TEST for size
 
-		printf("buffer: %s\n", buffer); //TEST for content
+		//printf("buffer: %s\n", buffer); //TEST for content
 
 		close(normalFd_p);
 		printf("buffer size: %ld\n", strlen(buffer)); //TEST
@@ -527,39 +529,58 @@ void copyCurrenttoNormal(char *args[], char fileName[], entry *entryList, uint64
 	}
 	else
 	{
+		int index = -1;
 
-		const char *currentBuff = (char *)readFromVolume(args[1], entryList, numDirEntries, currentDirIndex);
-		printf("file content to be copied: %s\n", currentBuff); //TEST
-
-		FILE *fp;
-		//Make sure you have /tmp directory available.
-		char *tmpDir = "/tmp/";
-		char *fileType = ".txt";
-		char fname[strlen(tmpDir) + strlen(args[2]) + strlen(fileType) + 1]; //name of file added to normalfs
-		sprintf(fname, "%s%s%s", tmpDir, args[2], fileType);
-		printf("fname: %s\n", fname); //TEST
-
-		struct stat statBuffer;
-		int exist = stat(fname, &statBuffer);
-
-		if (exist == 0)
+		for (int i = 0; i < numDirEntries; i++)
 		{
+			if ((strcmp(args[1], (entryList + i)->name) == 0) && (((entryList + i)->parent) == currentDirIndex))
+			{
+				index = i;
+			}
+		}
 
-			printf("%s file already exists. Choose a different name.\n", args[2]);
+		if (index == -1)
+		{
+			printf("File not found.\n");
 		}
 		else
 		{
+			uint64_t fileSize = (((entryList + index)->count) * BLOCK_SIZE);
+			printf("File Size: %ld\n", fileSize);
+			void *currentBuff = readFromVolume(args[1], entryList, numDirEntries, currentDirIndex);
+			//printf("file content to be copied: %s\n", currentBuff); //TEST
 
-			fp = fopen(fname, "w+");
-			//    fprintf(fp, "This is testing for fprintf...\n");
-			if (fputs(currentBuff, fp) < 0)
+			FILE *fp;
+			//Make sure you have /tmp directory available.
+			char *tmpDir = "/tmp/";
+			char fname[strlen(tmpDir) + strlen(args[2]) + 1]; //name of file added to normalfs
+			sprintf(fname, "%s%s", tmpDir, args[2]);
+			printf("fname: %s\n", fname); //TEST
+
+			struct stat statBuffer;
+			int exist = stat(fname, &statBuffer);
+
+			if (exist == 0)
 			{
 
-				printf("Error: Failed to  write on Normal File System");
+				printf("%s file already exists. Choose a different name.\n", args[2]);
 			}
+			else
+			{
 
-			fclose(fp);
+				fp = fopen(fname, "w+");
+				//    fprintf(fp, "This is testing for fprintf...\n");
+				if (fwrite(currentBuff, fileSize, 1,fp) < 0)
+				{
+
+					printf("Error: Failed to  write on Normal File System");
+				}
+
+				fclose(fp);
+			}
 		}
+
+		
 	}
 }
 
