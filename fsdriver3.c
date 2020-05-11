@@ -20,7 +20,8 @@
 
 //command prompt functions
 void listDir(int currentDirIndex, entry *entries, int size);
-int changeDir(char *args[], int currentDirIndex, entry *entryList, int size);
+int changeDir(char *args[], int currentDirIndex, entry *entryList, uint64_t size);
+void previousDir(char *args[], int * currentDirIndex, entry *entryList, uint64_t size);
 void makeDir(char *args[], int currentDirIndex, entry *entryList, char *bitMap);
 void rmDir(char *args[], int currentDirIndex, entry *entryList, char *bitMap, uint64_t numDirEntries);
 void rmFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap, uint64_t numDirEntries);
@@ -120,6 +121,10 @@ int main(int argc, char *argv[])
 			if (indexVal != -1)
 				currentDirIndex = indexVal;
 		}
+		else if (strcmp(args[0], "cd..") == 0)
+		{
+			previousDir(args, &currentDirIndex, entryList, numDirEntries);
+		}
 		else if (strcmp(args[0], "mkdir") == 0)
 		{
 			makeDir(args, currentDirIndex, entryList, bitMapBuf);
@@ -181,7 +186,7 @@ void listDir(int currentDirIndex, entry *entryList, int size)
 	printf("\n");
 }
 
-int changeDir(char *args[], int currentDirIndex, entry *entryList, int size)
+int changeDir(char *args[], int currentDirIndex, entry *entryList, uint64_t size)
 {
 	int result = -1;
 	int prevResult = -1;
@@ -225,6 +230,14 @@ int changeDir(char *args[], int currentDirIndex, entry *entryList, int size)
 		}
 	}
 	return result;
+}
+
+void previousDir(char *args[], int * currentDirIndex, entry *entryList, uint64_t size)
+{
+	if(*currentDirIndex != 0)
+	{
+		*currentDirIndex = ((entryList + *currentDirIndex)->parent);
+	}
 }
 
 void makeDir(char *args[], int currentDirIndex, entry *entryList, char *bitMap)
