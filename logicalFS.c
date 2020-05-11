@@ -1,3 +1,21 @@
+/************************************************************** 
+* Class:  CSC-415-0# Spring 2020 
+* Group Name: Kernel Sanders
+* Name: Alexander Beers
+* Student ID: 917308410
+* Name: Alicia Ramirez
+* Student ID: 917379715
+* Name: Michael Canson
+* Student ID: 920601003
+* Name: Amron Berhanu
+* Student ID: 916320644
+* Project: Assignment 3 – File System 
+* 
+* File: fsdriver3.c
+* 
+* Description: Interactive test driver that executes various commands 
+			   for the custom file system included with logicalFS.h 
+* **************************************************************/
 #include "logicalFS.h"
 
 //the params here will have to be assigned to whatever already exists on the volume if it isn't a new volume
@@ -8,8 +26,6 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry entries[], entry* entryList, 
 	uint64_t statusForRead = LBAread(vcb, 1, 0);
 
 	if(vcb->startOfVolume == '!') {
-			 
-
 		trackPosition += 1; //vcb is always < 1 full block
 		printf("Reading in metadata to program...\n");
 		uint64_t statusForRead2 = LBAread(bitMapBuf, (((sizeof(char) * LBA_COUNT) / BLOCK_SIZE) + 1), trackPosition);
@@ -30,7 +46,7 @@ void init(volumeEntry* vcb, char* bitMapBuf, entry entries[], entry* entryList, 
 		vcb = &vcbTemp;
 		LBAwrite(vcb, 1, trackPosition);
 		trackPosition += 1; //vcb is always < 1 full block
-		
+
 		//write bitMap array to volume
 		for(int i = 0; i < LBA_COUNT; i++) {
 			if(i < (trackPosition + (((sizeof(char) * LBA_COUNT) / BLOCK_SIZE) + 1) + rootDirBlocks)) {
@@ -70,56 +86,6 @@ void initRoot(uint64_t position, entry entries[], entry* rootBuf, uint64_t rootD
 		entries[0].lastModified = time(NULL);
 		entries[0].parent = -1; //no parent for root
 		entries[0].count = numDirEntries; 
-
-		//test
-		entries[2].id = 13111; //to signify root dir
-		entries[2].bitMap = ENTRYFLAG_DIR;
-		strcpy(entries[2].name, "Test");
-		//entries[2].location = position;
-		entries[2].index = 2;
-		entries[2].createTime = time(NULL);
-		entries[2].lastModified = time(NULL);
-		entries[2].parent = 0;
-		entries[2].count = 1; 
-
-		entries[3].id = 111111; //to signify root dir
-		entries[3].bitMap = ENTRYFLAG_DIR;
-		strcpy(entries[3].name, "Test2");
-		//entries[3].location = position;
-		entries[3].index = 3;
-		entries[3].createTime = time(NULL);
-		entries[3].lastModified = time(NULL);
-		entries[3].parent = 2;
-		entries[3].count = 1; 
-
-		entries[4].id = 3423423; //to signify root dir
-		entries[4].bitMap = ENTRYFLAG_FILE;
-		strcpy(entries[4].name, "alphatest");
-		//entries[4].location = position;
-		entries[4].index = 4;
-		entries[4].createTime = time(NULL);
-		entries[4].lastModified = time(NULL);
-		entries[4].parent = 2;
-		entries[4].location = 200;
-		entries[4].count = 1; 
-
-		char* buf = "ENTRY 4 filename TEST: THIS IS A TEST 11111111111111111111111111111111111111111111111111111111222222222222222222222222222222222222222222222222222222222222233333333333333333333333333333333";
-		LBAwrite(buf, 1, 200);
-
-
-		entries[5].id = 3422223; //to signify root dir
-		entries[5].bitMap = ENTRYFLAG_FILE;
-		strcpy(entries[5].name, "testfile");
-		entries[5].location = 300;
-		entries[5].index = 5;
-		entries[5].createTime = time(NULL);
-		entries[5].lastModified = time(NULL);
-		entries[5].parent = 0;
-		entries[5].count = 1; 
-
-		char* buf2 = "####################@@@@@@@@@@@@@@@@@@@((((((((((((((((()))))))))))))))))))(((((((((((((((((((((((($$$$$$$$$$$$$$$$$$$";
-		LBAwrite(buf2, 1, 300);
-
 
 		rootBuf = entries;
 		LBAwrite(rootBuf, rootDirBlocks, position);
@@ -261,7 +227,6 @@ int writeToVolume(void* buffer, char fileName[], uint64_t fileSize, int currentD
 	
 }
 
-
 // Writes the given buffer into the next available space in the volume as long as there's enough memory
 int writeDirectoryToVolume(char dirName[], int currentDirIndex, uint16_t type, entry* entryList, char* bitMap)
 {
@@ -294,9 +259,7 @@ int writeDirectoryToVolume(char dirName[], int currentDirIndex, uint16_t type, e
 	int entryListBlksWritten = LBAwrite(entryList, rootDirBlocks , trackPosition);
 	trackPosition += rootDirBlocks;
 	
-	
-	return 0;
-	
+	return 0;	
 }
 
 

@@ -3,17 +3,18 @@
 * Group Name: Kernel Sanders
 * Name: Alexander Beers
 * Student ID: 917308410
-* Name: 
-* Student ID: 
-* Name: 
-* Student ID: 
-* 
+* Name: Alicia Ramirez
+* Student ID: 917379715
+* Name: Michael Canson
+* Student ID: 920601003
+* Name: Amron Berhanu
+* Student ID: 916320644
 * Project: Assignment 3 – File System 
 * 
 * File: fsdriver3.c
 * 
 * Description: Interactive test driver that executes various commands 
-			   for the custom file system included with logicalFS.h 
+*			   for the custom file system included with logicalFS.h 
 * **************************************************************/
 #include "logicalFS.h"
 
@@ -31,52 +32,45 @@ void copyCurrenttoNormal(char *args[], char fileName[], entry *entryList, uint64
 
 int main(int argc, char *argv[])
 {
+	//get name of volume to use in startPartitionSystem
+	if (argv[1] == NULL)
+	{
+		printf("Error: must add as an argument the name of Volume to load.\nIf entered name is not found a new Volume will be created with entered name.\n");
+		exit(0);
+	} 
+	char* fileName = malloc(strlen(argv[1]) + 1);
+	strcpy(fileName, argv[1]);
+
 	uint64_t vSize = VOLUME_SIZE;
 	uint64_t *volSizePtr = &vSize;
-	char *fileName = "OurVolume";
 	uint64_t bSize = BLOCK_SIZE;
 	uint64_t *blockSizePtr = &bSize;
 	uint64_t numBytes = (AVGDIRENTRIES * sizeof(entry));
 	uint64_t rootDirBlocks = ((numBytes + (BLOCK_SIZE - 1)) / BLOCK_SIZE);
 	uint64_t numDirEntries = (rootDirBlocks * BLOCK_SIZE) / sizeof(entry);
-	printf("size of entry: %lu\nnumBytes: %lu\nRootDirBlocks: %lu\nnumDirEntries: %lu\n", sizeof(entry), numBytes, rootDirBlocks, numDirEntries);
 
-	int status = startPartitionSystem(fileName, volSizePtr, blockSizePtr);
-	printf("Status of starting partiton system (%d)\n\n", status);
-
-	//metadata
+	startPartitionSystem(fileName, volSizePtr, blockSizePtr);
+	
+	//init VCB, entrylist, and bitmap
 	volumeEntry *vcb = malloc(BLOCK_SIZE);
-	entry *entryList = malloc(rootDirBlocks * BLOCK_SIZE); // = malloc((((sizeof(entry) * LBA_COUNT) / BLOCK_SIZE) + 1) * BLOCK_SIZE );
+	entry *entryList = malloc(rootDirBlocks * BLOCK_SIZE); 
 	entry entries[numDirEntries];
 	char *bitMapBuf = malloc((((sizeof(char) * LBA_COUNT) / BLOCK_SIZE) + 1) * BLOCK_SIZE);
 	init(vcb, bitMapBuf, entries, entryList, fileName, rootDirBlocks, numDirEntries);
 	init(vcb, bitMapBuf, entries, entryList, fileName, rootDirBlocks, numDirEntries);
 	int currentDirIndex = 0;
 
-	// printf("The number of blocks used for metadata is %d blocks out of %ld blocks.\n", numMetadataBlocks, LBA_COUNT);
-
-	for (int i = 0; i < numDirEntries; i++)
-	{ //numDirEntries; i++) {
-		if ((entryList + i)->id != 0)
-		{
-			printf("Main Entry Index %d: %s\n", i, (entryList + i)->name);
-			printf("Main Entry location %d: %d\n", i, (entryList + i)->location);
-			printf("Main Entry count %d: %d\n", i, (entryList + i)->count);
-		}
-	}
-
-	//printf("File Text: %s", (char*)readFromVolume("how", entryList, numDirEntries, 0));
 
 	char line[1024];
 	char *args[500];
-
+	
+	//main testdriver loop
 	while (1)
 	{
 		printf("\nThe current directory is: %s\n", (entryList + currentDirIndex)->name);
 
 		if (argv[1] == NULL)
 			argv[1] = ">";
-		printf("%s ", argv[1]);
 
 		// reading user line
 		if (fgets(line, sizeof(line), stdin) == NULL)
@@ -114,7 +108,6 @@ int main(int argc, char *argv[])
 		while (args[i] != NULL)
 		{
 			args[++i] = strtok(NULL, " ");
-			// printf("args: %s\n",args[i]); //TEST
 		}
 
 		if (strcmp(args[0], "ls") == 0)
@@ -161,13 +154,13 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			//TODO not sure if theres some type of error message to call
 			printf("command not found.\n");
 		}
 	}
 
 	printf("Exiting...\n");
 	closePartitionSystem();
+	free(fileName);
 
 	return 0;
 }
@@ -187,20 +180,20 @@ void listDir(int currentDirIndex, entry *entryList, int size)
 	}
 	printf("\n");
 }
+
 int changeDir(char *args[], int currentDirIndex, entry *entryList, int size)
 {
 	int result = -1;
 	int prevResult = -1;
+
 	//Note that "cd " returns args[1] = null
 	if (args[1] == NULL)
 	{
-
 		args[1] = "Root";
 	}
 
 	for (int i = 0; i < size; i++)
 	{
-
 		if ((strcmp(args[1], (entryList + i)->name) == 0) && ((entryList + i)->bitMap == ENTRYFLAG_DIR))
 		{
 			//Check if the entered directory is the child of the current directory
@@ -230,12 +223,7 @@ int changeDir(char *args[], int currentDirIndex, entry *entryList, int size)
 				}
 			}
 		}
-		// 	if(strcmp(args[1],"..") == 0){
-		// 		result = prevResult;
-		// 	}
 	}
-	//printf("result: %d\n",result);
-	//printf("prevResult: %d\n",prevResult);
 	return result;
 }
 
@@ -246,7 +234,6 @@ void makeDir(char *args[], int currentDirIndex, entry *entryList, char *bitMap)
 		printf("Specify name of directory to add.");
 	}
 
-	printf("Input String %s \n", args[1]);
 	writeDirectoryToVolume(args[1], currentDirIndex, ENTRYFLAG_DIR, entryList, bitMap);
 }
 
@@ -348,7 +335,6 @@ void addFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap)
 		stpcpy(finalBuf, buf);
 		
 		uint64_t inputSize = strlen(finalBuf);
-		printf("Input String %s size is %ld bytes\n", finalBuf, inputSize);
 		
 		writeToVolume(finalBuf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap);
 		// Free the buffers
@@ -433,7 +419,6 @@ int cpFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap, ui
 		{
 			int size = (((entryList + result)->count) * BLOCK_SIZE) - 1;
 			char *name = (entryList + result)->name;
-			printf("Size: %d", size);
 
 			//read in file specified
 			void *buffer = malloc(((size / BLOCK_SIZE) + 1) * BLOCK_SIZE);
@@ -445,7 +430,6 @@ int cpFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap, ui
 			}
 			else
 			{
-				printf("REACHED");
 				writeDirectoryToVolume(args[1], indexOfDestinationDir, ENTRYFLAG_DIR, entryList, bitMap);
 			}
 			free(buffer);
@@ -469,9 +453,6 @@ void mvFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap, u
 
 void copyNormaltoCurrent(char *args[], int currentDirIndex, entry *entryList, char *bitMap)
 {
-	//args[1] = file name from 'normal' fs
-	//args[2] = file name you want to copy the file to in 'current' fs
-
 	uint64_t normalFd_p, fdSize, buffSize;
 
 	normalFd_p = open(args[1], O_RDONLY);
@@ -484,7 +465,6 @@ void copyNormaltoCurrent(char *args[], int currentDirIndex, entry *entryList, ch
 		{
 			printf("Error: argument invalid. file to write on unavailable.\n");
 		}
-		//checks if file to write on exists
 	}
 	else if (args[2] == NULL)
 	{
@@ -493,23 +473,14 @@ void copyNormaltoCurrent(char *args[], int currentDirIndex, entry *entryList, ch
 	}
 	else
 	{
-
 		buffSize = lseek(normalFd_p, 0, SEEK_END); //taking offset size from where normalfd ptr is (starting point) to end of file
-		printf("test: %ld\n", buffSize);
 		lseek(normalFd_p, 0, SEEK_SET); //bringing ptr back to begginging
 		
 		void * buffer = malloc(buffSize);
 
-		//char buffer[buffSize];
-
 		fdSize = read(normalFd_p, buffer, buffSize);
 
-		printf("fdSize: %ld\n", fdSize); //TEST for size
-
-		//printf("buffer: %s\n", buffer); //TEST for content
-
 		close(normalFd_p);
-		printf("buffer size: %ld\n", strlen(buffer)); //TEST
 
 		writeToVolume(buffer, args[2], fdSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap);
 	}
@@ -517,7 +488,6 @@ void copyNormaltoCurrent(char *args[], int currentDirIndex, entry *entryList, ch
 
 void copyCurrenttoNormal(char *args[], char fileName[], entry *entryList, uint64_t numDirEntries, int currentDirIndex)
 {
-
 	if (args[1] == NULL)
 	{
 		printf("Error: argument invalid. file to copy unavailable.\n");
@@ -546,23 +516,20 @@ void copyCurrenttoNormal(char *args[], char fileName[], entry *entryList, uint64
 		else
 		{
 			uint64_t fileSize = (((entryList + index)->count) * BLOCK_SIZE);
-			printf("File Size: %ld\n", fileSize);
+
 			void *currentBuff = readFromVolume(args[1], entryList, numDirEntries, currentDirIndex);
-			//printf("file content to be copied: %s\n", currentBuff); //TEST
 
 			FILE *fp;
 			//Make sure you have /tmp directory available.
 			char *tmpDir = "/tmp/";
 			char fname[strlen(tmpDir) + strlen(args[2]) + 1]; //name of file added to normalfs
 			sprintf(fname, "%s%s", tmpDir, args[2]);
-			printf("fname: %s\n", fname); //TEST
 
 			struct stat statBuffer;
 			int exist = stat(fname, &statBuffer);
 
 			if (exist == 0)
 			{
-
 				printf("%s file already exists. Choose a different name.\n", args[2]);
 			}
 			else
@@ -572,16 +539,11 @@ void copyCurrenttoNormal(char *args[], char fileName[], entry *entryList, uint64
 				//    fprintf(fp, "This is testing for fprintf...\n");
 				if (fwrite(currentBuff, fileSize, 1,fp) < 0)
 				{
-
 					printf("Error: Failed to  write on Normal File System");
 				}
 
 				fclose(fp);
 			}
-		}
-
-		
+		}		
 	}
 }
-
-// readFromVolume(char fileName[], entry* entryList, uint64_t numDirEntries, int currentDirIndex);

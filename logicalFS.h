@@ -1,3 +1,21 @@
+/************************************************************** 
+* Class:  CSC-415-0# Spring 2020 
+* Group Name: Kernel Sanders
+* Name: Alexander Beers
+* Student ID: 917308410
+* Name: Alicia Ramirez
+* Student ID: 917379715
+* Name: Michael Canson
+* Student ID: 920601003
+* Name: Amron Berhanu
+* Student ID: 916320644
+* Project: Assignment 3 – File System 
+* 
+* File: logicalFS.h
+* 
+* Description: Contains the necessary macros, libraries, and function prototypes
+*			   for our logical file system.
+* **************************************************************/
 #ifndef LOGICALFS_H
 #define LOGICALFS_H
 
