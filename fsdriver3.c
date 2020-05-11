@@ -557,6 +557,7 @@ void copyCurrenttoNormal(char *args[], char fileName[], entry *entryList, uint64
 
 				fclose(fp);
 			}
+			free(currentBuff);
 		}		
 	}
 }
