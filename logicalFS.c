@@ -306,6 +306,7 @@ int deleteFromVolume(int fileIndex, entry* entryList, char* bitMap)
 	// Actually  erase data for protection
 	void * blank = malloc(((entryList + fileIndex)->count) * BLOCK_SIZE);
 	LBAwrite(blank, (entryList + fileIndex)->count, (entryList + fileIndex)->location);
+	free(blank);
 
 	// Update bitMap by zeroing out what was once used space, now it can be written over by new files.
 	for(int i = (entryList + fileIndex)->location; i < ((entryList + fileIndex)->location + (entryList + fileIndex)->count); i++)

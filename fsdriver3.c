@@ -100,6 +100,11 @@ int main(int argc, char *argv[])
 		//when user decides to exit
 		if (!strcmp(line, "exit"))
 		{
+			free(vcb);
+			free(entryList);
+			free(bitMapBuf);
+			printf("Exiting...\n");
+			closePartitionSystem();
 			return 0;
 		}
 
@@ -161,6 +166,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	printf("Exiting...\n");
 	closePartitionSystem();
 
 	return 0;
@@ -309,7 +315,6 @@ void rmFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap, u
 
 void addFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap)
 {
-	printf("here");
 
 	if (args[1] == NULL)
 	{
@@ -321,14 +326,34 @@ void addFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap)
 	}
 	else
 	{
-		uint64_t inputSize = strlen(args[2]) + 1;
-		char input[inputSize];
-		strcpy(input, args[2]);
-		char *buf = malloc((((inputSize / BLOCK_SIZE) + 1) * BLOCK_SIZE));
+		//Get initial characters before first space
+		char *buf = malloc(strlen(args[2]+1));
 		strcpy(buf, args[2]);
-
-		printf("Input String %s size is %ld bytes\n", input, strlen(args[2]) + 1);
-		writeToVolume(buf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap);
+		
+		//Get number of arguments for for loop
+		uint64_t count = 0; 
+		while(args[count]){
+			count++;
+		}
+		
+		// For loop to account for spaces in input
+		for (int i=3; i < count; i++)
+		{
+			buf = realloc(buf, (strlen(buf) + strlen(args[i])));
+			strcat(buf, " ");
+			strcat(buf, args[i]);
+		}
+		//Malloc a new buffer since junk is written if we just realloc buf
+		char * finalBuf = malloc((((strlen(buf) / BLOCK_SIZE) + 1) * BLOCK_SIZE));
+		stpcpy(finalBuf, buf);
+		
+		uint64_t inputSize = strlen(finalBuf);
+		printf("Input String %s size is %ld bytes\n", finalBuf, inputSize);
+		
+		writeToVolume(finalBuf, args[1], inputSize, currentDirIndex, ENTRYFLAG_FILE, entryList, bitMap);
+		// Free the buffers
+		free(buf);
+		free(finalBuf);
 	}
 }
 
@@ -423,6 +448,7 @@ int cpFile(char *args[], int currentDirIndex, entry *entryList, char *bitMap, ui
 				printf("REACHED");
 				writeDirectoryToVolume(args[1], indexOfDestinationDir, ENTRYFLAG_DIR, entryList, bitMap);
 			}
+			free(buffer);
 		}
 
 		//this is the index of the orginal file that move will used to delete the old file
